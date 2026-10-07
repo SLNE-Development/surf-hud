@@ -29,6 +29,6 @@ fun hudExampleCommand() = commandTree("hudexample") {
     }
 
     literalArgument("clear") {
-        playerExecutor { player, _ -> player.hud.clear() }
+        playerExecutor { player, _ -> ExampleHud.clear(player) }
     }
 }

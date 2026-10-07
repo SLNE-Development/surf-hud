@@ -10,23 +10,25 @@ interface Hud {
 
     operator fun get(id: String): HudElement?
 
-    fun set(element: HudElement)
+    fun add(element: HudElement)
 
-    fun set(
+    fun add(
         id: String,
         line: Int,
         position: Int,
         content: Component,
         background: Boolean = true,
-    ) = set(HudElement(id, line, position, content, background))
+    ) = add(HudElement(id, line, position, content, background))
 
-    fun set(elements: Collection<HudElement>)
+    fun add(elements: Collection<HudElement>)
 
-    fun set(block: HudBuilder.() -> Unit) = set(HudBuilder().apply(block).build())
+    fun add(block: HudBuilder.() -> Unit) = add(HudBuilder().apply(block).build())
 
     fun content(id: String, content: Component): Boolean
 
     fun remove(id: String): HudElement?
+
+    fun remove(ids: Collection<String>)
 
     fun clear()
 

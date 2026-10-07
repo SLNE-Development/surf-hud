@@ -1,6 +1,8 @@
 package dev.slne.surf.hud.example.paper.hud
 
 import dev.slne.surf.api.core.font.toSmallCaps
+import dev.slne.surf.hud.api.HudBuilder
+import dev.slne.surf.hud.api.buildHud
 import dev.slne.surf.hud.api.hud
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.TextColor
@@ -18,8 +20,14 @@ object ExampleHud {
 
     private val clockFormat = DateTimeFormatter.ofPattern("HH:mm:ss")
 
+    private val ids = setOf(
+        "online", "clock", "ping", "position",
+        "single",
+        "left-far", "left", "center", "right", "right-far", "bold", "plain", "smallcaps",
+    )
+
     fun apply(player: Player) {
-        player.hud.set {
+        show(player) {
             line(0) {
                 element("online", -1, online())
                 center("clock", clock())
@@ -32,7 +40,7 @@ object ExampleHud {
     }
 
     fun single(player: Player) {
-        player.hud.set {
+        show(player) {
             line(0) {
                 element(
                     "single",
@@ -44,7 +52,7 @@ object ExampleHud {
     }
 
     fun banner(player: Player) {
-        player.hud.set {
+        show(player) {
             line(0) {
                 element("left-far", -2, Component.text("-2", MUTED))
                 element("left", -1, labelled("Links", "-1"))
@@ -58,6 +66,18 @@ object ExampleHud {
                 element("smallcaps", 0, Component.text("Smallcaps Font".toSmallCaps(), MUTED))
             }
         }
+    }
+
+    fun clear(player: Player) {
+        player.hud.remove(ids)
+    }
+
+    private fun show(player: Player, block: HudBuilder.() -> Unit) {
+        val elements = buildHud(block)
+        val hud = player.hud
+
+        hud.add(elements)
+        hud.remove(ids - elements.mapTo(HashSet()) { it.id })
     }
 
     fun update() {

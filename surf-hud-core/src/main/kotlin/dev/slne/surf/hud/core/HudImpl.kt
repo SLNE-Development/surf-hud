@@ -36,12 +36,11 @@ class HudImpl(
 
     override fun get(id: String): HudElement? = synchronized(lock) { content[id] }
 
-    override fun set(element: HudElement) = modify {
+    override fun add(element: HudElement) = modify {
         content[element.id] = element
     }
 
-    override fun set(elements: Collection<HudElement>) = modify {
-        content.clear()
+    override fun add(elements: Collection<HudElement>) = modify {
         elements.forEach { content[it.id] = it }
     }
 
@@ -56,6 +55,12 @@ class HudImpl(
 
     override fun remove(id: String): HudElement? = synchronized(lock) {
         content.remove(id)?.also { dirty = true }
+    }
+
+    override fun remove(ids: Collection<String>) = synchronized(lock) {
+        if (content.keys.removeAll(ids.toSet())) {
+            dirty = true
+        }
     }
 
     override fun clear() = modify {
