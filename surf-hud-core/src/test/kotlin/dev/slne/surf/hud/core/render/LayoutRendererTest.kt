@@ -40,9 +40,13 @@ class LayoutRendererTest {
             }
         }
         val ascii = model.glyphSets.getValue("default") as AsciiSet
+        val spaceChars = SpaceGlyphs.advancesByChar.keys.map { it[0] }.toSet()
         fun walk(c: Component): Int = ((c as? TextComponent)?.content()?.sumOf { ch ->
             val bold = c.decoration(net.kyori.adventure.text.format.TextDecoration.BOLD) == net.kyori.adventure.text.format.TextDecoration.State.TRUE
-            advances[ch] ?: (ascii.advance(ch)!! + if (bold) 1 else 0)
+            if (ch in spaceChars) {
+                assertFalse(bold, "space glyph inside a bold run")
+                advances.getValue(ch)
+            } else advances[ch] ?: (ascii.advance(ch)!! + if (bold) 1 else 0)
         } ?: 0) + c.children().sumOf(::walk)
         return walk(component)
     }
@@ -92,5 +96,60 @@ class LayoutRendererTest {
         val pixels = model.glyphSets.getValue("head_small") as PixelSet
         val glyphs = component.children().sumOf { (it as TextComponent).content().count { c -> c in pixels.rows } }
         assertEquals(64, glyphs)
+    }
+
+    private fun renderCustom(layoutId: String, extra: Map<String, String>): Component {
+        model = TestDefinitions.compile(root, TestDefinitions.standardFiles() + extra)
+        val placement = model.huds.values.flatMap { it.placements }.first { it.layout.id == layoutId }
+        return LayoutRenderer(model, TextRenderer(warnings)).render(placement.slot, placement.layout, scope()) { _, _ -> HeadPixels.placeholder("x") }
+    }
+
+    private val extraFiles = mapOf(
+        "layouts/extra.yml" to """
+            centered:
+              align: center
+              elements:
+                - { type: text, x: 0, y: 3, text: "<bold>AB</bold> C" }
+            righty:
+              align: right
+              elements:
+                - { type: text, x: 0, y: 3, text: "<bold>AB</bold> C" }
+            emptyfirst:
+              elements:
+                - { type: bar, image: panel, width: 60, value: "0" }
+                - { type: text, x: 4, y: 3, text: "[money]" }
+                - { type: text, x: 0, y: 3, text: "<bold>AB</bold> C" }
+        """,
+        "huds/extra.yml" to """
+            fx:
+              layouts:
+                - { layout: centered, anchor: top_left, x: 0, y: 0 }
+                - { layout: righty, anchor: top_left, x: 0, y: 20 }
+                - { layout: emptyfirst, anchor: top_left, x: 0, y: 40 }
+        """,
+    )
+
+    @Test fun `bold aligned layouts have zero total advance`() {
+        for (id in listOf("centered", "righty")) assertEquals(0, advance(renderCustom(id, extraFiles)), id)
+    }
+
+    @Test fun `layouts after elements that draw nothing stay balanced`() {
+        values["money"] = ""
+        val component = renderCustom("emptyfirst", extraFiles)
+        assertEquals(0, advance(component))
+        val known = HashSet<Char>()
+        SpaceGlyphs.advancesByChar.keys.forEach { known += it[0] }
+        model.glyphSets.values.forEach { set ->
+            when (set) {
+                is ImageSet -> known += set.glyph.char
+                is StripSet -> (listOf(set.left, set.right) + set.middles).forEach { known += it.char }
+                is PixelSet -> known += set.rows
+                is AsciiSet -> {}
+            }
+        }
+        val ascii = model.glyphSets.getValue("default") as AsciiSet
+        val text = component.children().joinToString("") { (it as TextComponent).content() }
+        assertTrue(text.isNotEmpty())
+        text.forEach { assertTrue(it in known || ascii.advance(it) != null, "unknown glyph U+%04X".format(it.code)) }
     }
 }
