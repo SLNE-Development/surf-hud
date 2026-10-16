@@ -59,17 +59,19 @@ open class HudEngine(
     val placeholderRegistry = PlaceholderRegistryImpl()
     override val placeholders: PlaceholderRegistry get() = placeholderRegistry
 
+    /** The active model with the renderer and head service built for it; published as one unit on reload. */
+    class Runtime(val model: HudModel, val renderer: LayoutRenderer, val heads: HeadService)
+
+    /** The active [Runtime], or `null` before the first successful reload. Read it once per frame. */
     @Volatile
-    var model: HudModel? = null
+    var runtime: Runtime? = null
         private set
 
-    @Volatile
-    lateinit var heads: HeadService
-        private set
+    val model: HudModel? get() = runtime?.model
 
-    @Volatile
-    lateinit var renderer: LayoutRenderer
-        private set
+    val heads: HeadService get() = requireRuntime().heads
+
+    val renderer: LayoutRenderer get() = requireRuntime().renderer
 
     private val players = ConcurrentHashMap<UUID, PlayerHud>()
     private val reloadMutex = Mutex()
@@ -85,7 +87,10 @@ open class HudEngine(
     }
 
     /** The active model; throws [IllegalStateException] before the first successful reload. */
-    fun requireModel(): HudModel = model ?: throw IllegalStateException("surf-hud has not loaded a configuration yet")
+    fun requireModel(): HudModel = requireRuntime().model
+
+    /** The active runtime; throws [IllegalStateException] before the first successful reload. */
+    fun requireRuntime(): Runtime = runtime ?: throw IllegalStateException("surf-hud has not loaded a configuration yet")
 
     /** The player joined: the bossbar is shown again on the next tick. */
     fun handleJoin(uuid: UUID) = hud(uuid).invalidate()
@@ -108,7 +113,18 @@ open class HudEngine(
     override suspend fun popup(id: String, viewers: Collection<UUID>, variables: Map<String, Any?>): List<PopupHandle> =
         coroutineScope { viewers.map { async { hud(it).popup(id, variables) } }.awaitAll() }
 
-    override suspend fun reload(): ReloadResult = reloadMutex.withLock { withContext(Dispatchers.IO) { doReload() } }
+    override suspend fun reload(): ReloadResult = reloadMutex.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                doReload()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.atSevere().withCause(e).log("Reload failed")
+                failed(listOf("Reload failed: ${e.message}"))
+            }
+        }
+    }
 
     /** Loads, compiles and writes the pack; swaps the new model in only when every step succeeded. */
     private fun doReload(): ReloadResult {
@@ -129,20 +145,19 @@ open class HudEngine(
         } catch (e: Exception) {
             return failed(listOf("Could not write the resource pack: ${e.message}"))
         }
-        heads = HeadService(
+        val heads = HeadService(
             skinSources, http, root.resolve("cache/heads"), Durations.parse(settings.heads.cacheTtl), clock, scope,
             fallbackHead(root.resolve("assets").resolve(settings.heads.fallback)),
         )
-        renderer = LayoutRenderer(model, TextRenderer(warnings))
-        val first = this.model == null
-        this.model = model
+        val first = runtime == null
+        runtime = Runtime(model, LayoutRenderer(model, TextRenderer(warnings)), heads)
         players.values.forEach { it.onModelChanged(model, first) }
         log.atInfo().log("Loaded %d HUDs and %d popups in %d slots; pack SHA-1 %s", model.huds.size, model.popups.size, model.slots.size, hash)
         return ReloadResult(emptyList(), hash)
     }
 
-    /** Regenerates the pack from the active model. */
-    fun generatePack(): String = writePack(requireModel())
+    /** Regenerates the pack from the active model; waits for a running reload. */
+    suspend fun generatePack(): String = reloadMutex.withLock { withContext(Dispatchers.IO) { writePack(requireModel()) } }
 
     private fun writePack(model: HudModel): String {
         val root = platform.dataFolder
@@ -166,14 +181,18 @@ open class HudEngine(
         else SkinFace.extract(image)
     }
 
-    /** With `heads.await-loaded`, waits (up to the timeout) for every head the placements would draw. */
+    /**
+     * With `heads.await-loaded`, waits (up to the timeout) for every head the placements would draw. Skips
+     * waiting when the player is offline or the player's thread does not run the lookup within the timeout.
+     */
     internal suspend fun awaitHeads(player: PlayerHud, placements: List<Placement>, variables: Map<String, Value>) {
-        val model = requireModel()
-        if (!model.settings.heads.awaitLoaded) return
+        val runtime = requireRuntime()
+        val settings = runtime.model.settings.heads
+        if (!settings.awaitLoaded) return
         if (placements.none { p -> p.layout.elements.any { it is HeadSpec } }) return
-        val names = onPlayerThread(player.uuid) { player.headNames(placements, variables) } ?: return
-        val timeout = Durations.parse(model.settings.heads.timeout)
-        coroutineScope { names.distinct().map { async { heads.await(it, timeout) } }.awaitAll() }
+        val timeout = Durations.parse(settings.timeout)
+        val names = withTimeoutOrNull(timeout) { onPlayerThread(player.uuid) { player.headNames(placements, variables) } } ?: return
+        coroutineScope { names.distinct().map { async { runtime.heads.await(it, timeout) } }.awaitAll() }
     }
 
     /** Runs [block] on the player's thread; `null` when the player is offline or [block] failed. */

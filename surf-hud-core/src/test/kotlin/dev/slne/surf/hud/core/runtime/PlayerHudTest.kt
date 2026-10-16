@@ -3,6 +3,7 @@ package dev.slne.surf.hud.core.runtime
 import dev.slne.surf.hud.core.*
 import dev.slne.surf.hud.core.placeholder.HudClock
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import net.kyori.adventure.text.Component
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -116,6 +117,36 @@ class PlayerHudTest {
         val result = reload()
         assertContains(result.errors.single(), "offline")
         assertNull(engine.model)
+    }
+
+    @Test fun `reload re-renders layouts whose text changed`() {
+        reload(); engine.handleJoin(uuid); tick()
+        val before = name()
+        val stats = TestDefinitions.standardFiles().getValue("layouts/stats.yml").trimIndent()
+        root.resolve("layouts/stats.yml").writeText(stats.replace("<gold>[money]</gold>", "<gold>$[money] coins</gold>"))
+        assertTrue(reload().success)
+        tick()
+        assertNotEquals(before, name())
+        // A fresh engine on the same files renders what the reloaded one must now show.
+        val fresh = testEngine(platform, HudClock { now })
+        fresh.placeholderRegistry.register("money") { _, _ -> 1500 }
+        fresh.placeholderRegistry.register("health") { _, _ -> 10 }
+        fresh.placeholderRegistry.register("max_health") { _, _ -> 20 }
+        val other = UUID.randomUUID()
+        platform.audiences[other] = RecordingAudience()
+        runBlocking { assertTrue(fresh.reload().success) }
+        fresh.handleJoin(other)
+        fresh.update(other)
+        assertEquals(platform.audiences.getValue(other).bars.single().name(), name())
+    }
+
+    @Test fun `show does not hang when the player thread drops the task`() = runBlocking<Unit> {
+        root.resolve("config.yml").writeText("heads: { timeout: 200ms }")
+        root.resolve("huds/heads.yml").writeText("heads: { layouts: [ { layout: head, anchor: center } ] }")
+        assertTrue(reload().success)
+        platform.runTasks = false
+        withTimeout(5_000) { engine.player(uuid).show("heads") }
+        assertTrue("heads" in engine.player(uuid).shownHuds)
     }
 
     @Test fun `show on an offline player does not wait`() = runBlocking<Unit> {

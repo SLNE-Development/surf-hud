@@ -18,10 +18,14 @@ class RecordingAudience : Audience {
 class FakePlatform(override val dataFolder: Path) : HudPlatform {
     val audiences = HashMap<UUID, RecordingAudience>()
     var online = true
+
+    /** `false` simulates a scheduler that accepts tasks but drops them (e.g. the entity was removed). */
+    var runTasks = true
     override fun viewer(uuid: UUID) = audiences[uuid]
     override fun execute(uuid: UUID, task: () -> Unit): Boolean {
         if (!online) return false
-        task(); return true
+        if (runTasks) task()
+        return true
     }
 }
 

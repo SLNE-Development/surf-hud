@@ -116,14 +116,18 @@ class PlayerHud(override val uuid: UUID, private val engine: HudEngine) : HudPla
             .filter { it.isNotBlank() }
     }
 
-    /** Called every tick on the player's thread; renders when forced or when the update interval elapsed. */
+    /**
+     * Called every tick on the player's thread; renders when forced or when the update interval elapsed. The
+     * engine's runtime is read once under [lock], so a frame never mixes two configurations.
+     */
     fun update() {
-        val model = engine.model ?: return
-        if (!forced && ++ticks < model.settings.updateInterval) return
-        ticks = 0
-        forced = false
-        val audience = engine.platform.viewer(uuid) ?: return
         synchronized(lock) {
+            val runtime = engine.runtime ?: return
+            val model = runtime.model
+            if (!forced && ++ticks < model.settings.updateInterval) return
+            ticks = 0
+            forced = false
+            val audience = engine.platform.viewer(uuid) ?: return
             expirePopups()
             val cache = cache()
             cache.nextFrame()
@@ -133,13 +137,17 @@ class PlayerHud(override val uuid: UUID, private val engine: HudEngine) : HudPla
                 for (id in shown) {
                     val hud = model.huds[id] ?: continue
                     if (!hud.conditions.all { it.isTrue(base) }) continue
-                    hud.placements.forEach { placement -> render(placement, base, null)?.let { parts += placement.slot to it } }
+                    hud.placements.forEach { placement ->
+                        render(runtime, placement, base, null)?.let { parts += placement.slot to it }
+                    }
                 }
                 for (stack in stacks.values) {
                     stack.forEachIndexed { index, instance ->
                         val scope = RenderScope(uuid, cache, HashMap(instance.variables), engine.warnings)
-                        instance.spec.stacks.getOrNull(index)?.forEach { placement ->
-                            render(placement, scope, instance)?.let { parts += placement.slot to it }
+                        // Popups opened against an older model may still carry its spec; use the active one.
+                        val spec = model.popups[instance.spec.id] ?: return@forEachIndexed
+                        spec.stacks.getOrNull(index)?.forEach { placement ->
+                            render(runtime, placement, scope, instance)?.let { parts += placement.slot to it }
                         }
                     }
                 }
@@ -150,15 +158,15 @@ class PlayerHud(override val uuid: UUID, private val engine: HudEngine) : HudPla
     }
 
     /**
-     * Renders [placement] unless a condition hides it. The result is reused while the layout's placeholder
-     * values, the owning popup and the head version are unchanged.
+     * Renders [placement] unless a condition hides it. The result is reused while the runtime, the layout's
+     * placeholder values, the owning popup and the head version are unchanged.
      */
-    private fun render(placement: Placement, scope: RenderScope, owner: PopupInstance?): Component? {
+    private fun render(runtime: HudEngine.Runtime, placement: Placement, scope: RenderScope, owner: PopupInstance?): Component? {
         if (!placement.conditions.all { it.isTrue(scope) } || !placement.layout.conditions.all { it.isTrue(scope) }) return null
         val inputs = placement.layout.placeholders.map { scope.resolve(it) }
-        val key = listOf(owner, inputs, engine.heads.version)
+        val key = listOf(runtime, owner, inputs, runtime.heads.version)
         val component = layouts[placement.slot]?.takeIf { it.key == key }?.component
-            ?: engine.renderer.render(placement.slot, placement.layout, scope, ::head).also {
+            ?: runtime.renderer.render(placement.slot, placement.layout, scope) { headKey, player -> head(runtime, headKey, player) }.also {
                 layouts[placement.slot] = CachedLayout(key, it)
             }
         return component.takeUnless { it == Component.empty() }
@@ -168,14 +176,14 @@ class PlayerHud(override val uuid: UUID, private val engine: HudEngine) : HudPla
      * The head to draw for [player]: the cached one, else (while it loads) the head this element drew before
      * when `await-loaded` is on, else the fallback.
      */
-    private fun head(key: HeadKey, player: String): HeadPixels {
-        val heads = engine.heads
+    private fun head(runtime: HudEngine.Runtime, key: HeadKey, player: String): HeadPixels {
+        val heads = runtime.heads
         heads.cached(player)?.let { pixels ->
             rememberedHeads[key] = pixels
             return pixels
         }
         heads.request(player)
-        if (engine.requireModel().settings.heads.awaitLoaded) rememberedHeads[key]?.let { return it }
+        if (runtime.model.settings.heads.awaitLoaded) rememberedHeads[key]?.let { return it }
         return heads.fallback
     }
 
