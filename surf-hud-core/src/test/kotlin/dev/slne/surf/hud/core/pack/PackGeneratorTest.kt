@@ -4,10 +4,13 @@ import com.google.gson.JsonParser
 import dev.slne.surf.hud.core.TestDefinitions
 import dev.slne.surf.hud.core.model.HudEncoding
 import org.junit.jupiter.api.io.TempDir
+import java.io.IOException
 import java.nio.file.Path
 import java.util.zip.ZipFile
+import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readText
+import kotlin.io.path.writeText
 import kotlin.test.*
 
 class PackGeneratorTest {
@@ -78,5 +81,27 @@ class PackGeneratorTest {
         Thread.sleep(2100)
         val second = PackWriter.write(gen.build(), gen.packMeta(), zip, root.resolve("build/pack"))
         assertEquals(first, second)
+    }
+
+    @Test fun `refuses to delete a folder it did not write`() {
+        val gen = PackGenerator(TestDefinitions.compile(root))
+        val folder = root.resolve("build/pack").createDirectories()
+        folder.resolve("notes.txt").writeText("keep me")
+        val error = assertFailsWith<IOException> { PackWriter.write(gen.build(), gen.packMeta(), root.resolve("build/surf-hud.zip"), folder) }
+        assertContains(error.message!!, PackWriter.MARKER)
+        assertEquals("keep me", folder.resolve("notes.txt").readText())
+    }
+
+    @Test fun `rewrites a folder it wrote before`() {
+        val gen = PackGenerator(TestDefinitions.compile(root))
+        val folder = root.resolve("build/pack")
+        val zip = root.resolve("build/surf-hud.zip")
+        PackWriter.write(gen.build(), gen.packMeta(), zip, folder)
+        assertTrue(folder.resolve(PackWriter.MARKER).exists())
+        folder.resolve("stale.txt").writeText("old")
+        PackWriter.write(gen.build(), gen.packMeta(), zip, folder)
+        assertFalse(folder.resolve("stale.txt").exists())
+        assertTrue(folder.resolve(PackWriter.MARKER).exists())
+        ZipFile(zip.toFile()).use { assertNull(it.getEntry(PackWriter.MARKER)) }
     }
 }

@@ -71,7 +71,7 @@ object TestDefinitions {
         DefinitionLoader(ConfigurateTestReader).also { write(root, files) }.load(root)
 
     fun compileResult(root: Path, files: Map<String, String> = standardFiles()) =
-        Compiler(TestAssets.vanilla(), root.resolve("assets")).compile(load(root, files))
+        Compiler(TestAssets.vanilla(), root).compile(load(root, files))
 
     fun compile(root: Path, files: Map<String, String> = standardFiles()): HudModel =
         when (val result = compileResult(root, files)) {

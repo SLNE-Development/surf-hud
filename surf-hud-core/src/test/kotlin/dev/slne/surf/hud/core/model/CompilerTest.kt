@@ -108,4 +108,21 @@ class CompilerTest {
         """)
         assertContains(errors.single(), "anchor is set on the popup")
     }
+
+    @Test fun `output paths must stay strictly inside the data folder`() {
+        val outside = root.parent.resolve("elsewhere").toString().replace('\\', '/')
+        for (folder in listOf("", ".", "..", "../pack", "build/../..", outside, "assets", "assets/pack", "cache", "images", "texts",
+            "layouts", "huds", "popups", "config.yml")) {
+            val errors = errors("config.yml" to "output: { folder: \"$folder\" }")
+            assertTrue(errors.any { it.startsWith("config.yml > output.folder: ") }, "$folder: $errors")
+        }
+        for (zip in listOf("", "../surf-hud.zip", "build/pack/surf-hud.zip", "config.yml", "assets/surf-hud.zip")) {
+            val errors = errors("config.yml" to "output: { zip: \"$zip\" }")
+            assertTrue(errors.any { it.startsWith("config.yml > output.zip: ") }, "$zip: $errors")
+        }
+    }
+
+    @Test fun `ordinary output paths compile`() {
+        TestDefinitions.compile(root, TestDefinitions.standardFiles() + ("config.yml" to "output: { folder: out/pack, zip: out/hud.zip }"))
+    }
 }

@@ -7,6 +7,7 @@ import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextColor
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 sealed interface CompileResult {
@@ -17,13 +18,14 @@ sealed interface CompileResult {
 /**
  * Validates a [DefinitionSet] and compiles it into a [HudModel]: glyph sets, layouts, HUDs and popups with
  * their shader slots and fonts. All errors are collected; any error makes the result a [CompileResult.Failure].
+ * Image files are read from `assets/` below [dataFolder]; the output paths are checked against it.
  */
-class Compiler(private val assets: VanillaAssets, private val assetRoot: Path) {
+class Compiler(private val assets: VanillaAssets, private val dataFolder: Path) {
     fun compile(definitions: DefinitionSet): CompileResult {
         val errors = ErrorCollector(definitions.errors)
         val settings = definitions.settings
         val bossbarColor = settings(settings, errors)
-        val builder = GlyphSetBuilder(assets, assetRoot, CharAllocator())
+        val builder = GlyphSetBuilder(assets, dataFolder.resolve("assets"), CharAllocator())
 
         val texts = definitions.texts.values.mapNotNull { (id, file, definition) ->
             errors.at("$file > $id") { checkId(id); builder.text(id, definition) }?.let { id to it }
@@ -129,8 +131,39 @@ class Compiler(private val assets: VanillaAssets, private val assetRoot: Path) {
         listOf("heads.timeout" to settings.heads.timeout, "heads.cache-ttl" to settings.heads.cacheTtl).forEach { (key, value) ->
             runCatching { Durations.parse(value) }.onFailure { errors.add("config.yml > $key", it.message ?: "invalid duration") }
         }
+        outputPaths(settings.output, errors)
         return BossBar.Color.NAMES.value(settings.bossbarColor).also {
             if (it == null) errors.add("config.yml > bossbar-color", "unknown color '${settings.bossbarColor}' (expected ${BossBar.Color.NAMES.keys().joinToString()})")
+        }
+    }
+
+    /**
+     * The pack folder is deleted and rewritten on every write, so both output paths must resolve strictly inside
+     * the data folder, away from `config.yml` and the folders holding user files, and the zip must not lie in
+     * the pack folder (it would zip itself).
+     */
+    private fun outputPaths(output: OutputSettings, errors: ErrorCollector) {
+        val root = dataFolder.toAbsolutePath().normalize()
+        val reserved = RESERVED.map { root.resolve(it) }
+        fun check(key: String, value: String): Path? {
+            val path = try {
+                root.resolve(value).normalize()
+            } catch (e: InvalidPathException) {
+                errors.add("config.yml > $key", "invalid path '$value': ${e.reason}")
+                return null
+            }
+            val problem = when {
+                !path.startsWith(root) || path == root -> "must be inside the plugin folder, was '$value'"
+                reserved.any { path.startsWith(it) } -> "must not be or lie in ${RESERVED.joinToString()}, was '$value'"
+                else -> null
+            }
+            if (problem != null) errors.add("config.yml > $key", problem)
+            return path.takeIf { problem == null }
+        }
+        val folder = check("output.folder", output.folder)
+        val zip = check("output.zip", output.zip)
+        if (folder != null && zip != null && zip.startsWith(folder)) {
+            errors.add("config.yml > output.zip", "must not lie in output.folder '${output.folder}', was '${output.zip}'")
         }
     }
 
@@ -249,5 +282,8 @@ class Compiler(private val assets: VanillaAssets, private val assetRoot: Path) {
 
     private companion object {
         val ID = Regex("[a-z0-9_-]+")
+
+        /** Files and folders of the data folder that hold user data; output paths must stay out of them. */
+        val RESERVED = listOf("config.yml", "assets", "cache", "images", "texts", "layouts", "huds", "popups")
     }
 }

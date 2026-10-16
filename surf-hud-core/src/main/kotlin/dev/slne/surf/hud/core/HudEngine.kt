@@ -136,7 +136,7 @@ open class HudEngine(
         } catch (e: Exception) {
             return failed(listOf("Could not load the vanilla assets of Minecraft ${settings.minecraftVersion}: ${e.message}"))
         }
-        val model = when (val result = Compiler(assets, root.resolve("assets")).compile(definitions)) {
+        val model = when (val result = Compiler(assets, root).compile(definitions)) {
             is CompileResult.Failure -> return failed(result.errors)
             is CompileResult.Success -> result.model
         }
