@@ -7,10 +7,15 @@ import kotlin.random.Random
 
 /**
  * A looping fake vote between two player heads: [VOTE_SECONDS] of voting with simulated votes, then the result
- * for [RESULT_SECONDS], then hidden for [HIDDEN_SECONDS]. Rounds alternate the title between the 1.5x and the
- * 2x font so both can be compared in game.
+ * for [RESULT_SECONDS], then hidden for [HIDDEN_SECONDS]. The title uses [titleScale] ("1", "1.5" or "2"); without
+ * one, rounds alternate between 1.5x and 2x so both can be compared in game.
  */
-class VoteHud(private val meta: HudMetadata, private val left: PlayerHead, private val right: PlayerHead) {
+class VoteHud(
+    private val meta: HudMetadata,
+    private val left: PlayerHead,
+    private val right: PlayerHead,
+    private val titleScale: String? = null,
+) {
     enum class Phase { VOTING, RESULT, HIDDEN }
 
     private val random = Random(42)
@@ -95,11 +100,16 @@ class VoteHud(private val meta: HudMetadata, private val left: PlayerHead, priva
         val result = phase == Phase.RESULT
         val parts = mutableListOf<JsonObject>()
 
-        val twoX = round % 2 == 1
-        val titleElement = if (twoX) "vote_title_2x" else "vote_title_15"
-        val titleSet = if (twoX) "title_2x" else "title_15"
+        val scale = titleScale ?: if (round % 2 == 1) "2" else "1.5"
+        val (titleElement, titleSet) = when (scale) {
+            "1" -> "vote_title_1x" to "text"
+            "1.5" -> "vote_title_15" to "title_15"
+            "2" -> "vote_title_2x" to "title_2x"
+            else -> error("Unsupported vote title scale '$scale' (1, 1.5 or 2)")
+        }
+        val tag = if (titleScale == null) " [${scale}x]" else ""
         parts += HudElementBuilder(meta, titleElement)
-            .text("Who builds the next spawn? [${if (twoX) "2x" else "1.5x"}]", color = "#FFFFFF", set = titleSet)
+            .text("Who builds the next spawn?$tag", color = "#FFFFFF", set = titleSet)
             .build(Align.CENTER)
 
         parts += HudElementBuilder(meta, "vote_vs").text("VS", color = "#FFD23C", set = "vs").build(Align.CENTER)

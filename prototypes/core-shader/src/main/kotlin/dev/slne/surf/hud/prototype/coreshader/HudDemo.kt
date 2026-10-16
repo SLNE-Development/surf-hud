@@ -87,15 +87,17 @@ private fun composeHud(meta: HudMetadata, player: PlayerState, t: Double): List<
  * A looping vote between two real player heads ([VoteHud]) runs in the middle of the screen. Its heads are
  * written to a shared storage only when the vote phase changes; everything else is resent every update.
  *
- * Usage: HudDemo <hud-metadata.json> <rcon port> <rcon password> <player,player,…> <candidate,candidate> [seconds]
+ * Usage: HudDemo <hud-metadata.json> <rcon port> <rcon password> <player,player,…> <candidate,candidate>
+ *        [1|1.5|2|alternate title scale] [seconds]
  */
 fun main(args: Array<String>) {
     val meta = HudMetadata.read(Path.of(args[0]))
     val players = args[3].split(',').filter { it.isNotBlank() }.mapIndexed { index, name -> PlayerState(name, index) }
     val candidates = args[4].split(',').map(String::trim)
     require(candidates.size == 2) { "Expected two vote candidates, got '${args[4]}'" }
-    val vote = VoteHud(meta, PlayerHeads.fetch(candidates[0]), PlayerHeads.fetch(candidates[1]))
-    val runForMillis = args.getOrNull(5)?.toLong()?.times(1000) ?: Long.MAX_VALUE
+    val titleScale = args.getOrNull(5)?.takeIf { it != "alternate" }
+    val vote = VoteHud(meta, PlayerHeads.fetch(candidates[0]), PlayerHeads.fetch(candidates[1]), titleScale)
+    val runForMillis = args.getOrNull(6)?.toLong()?.times(1000) ?: Long.MAX_VALUE
     val start = System.currentTimeMillis()
 
     Rcon("localhost", args[1].toInt(), args[2]).use { rcon ->

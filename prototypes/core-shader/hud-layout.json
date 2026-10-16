@@ -23,6 +23,7 @@
         "money": {"anchor": "bottom_right", "offset": [-4, -17], "layers": {"panel": 0, "icon": 2, "text": 3}},
         "health": {"anchor": "bottom_right", "offset": [-4, -30], "layers": {"icon": 0, "bar_bg": 1, "bar_fill": 2, "text": 1}},
         "player": {"anchor": "bottom_left", "offset": [4, -14], "layers": {"icon": 0, "text": 1}},
+        "vote_title_1x": {"anchor": "center", "offset": [0, -74], "layers": {"text": 0}},
         "vote_title_15": {"anchor": "center", "offset": [0, -78], "layers": {"title_15": 0}},
         "vote_title_2x": {"anchor": "center", "offset": [0, -80], "layers": {"title_2x": 0}},
         "vote_heads": {"anchor": "center", "offset": [0, -60], "layers": {"pixel_big": 0}},

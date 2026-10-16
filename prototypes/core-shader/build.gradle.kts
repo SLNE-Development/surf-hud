@@ -67,5 +67,7 @@ tasks.register<JavaExec>("runHudDemo") {
         providers.gradleProperty("hud.players").getOrElse("Dev,Dev2"),
         // Real Mojang accounts whose skins become the two vote heads.
         providers.gradleProperty("hud.voteNames").getOrElse("Notch,jeb_"),
+        // 1, 1.5 or 2; "alternate" switches between 1.5x and 2x every round.
+        providers.gradleProperty("hud.voteTitleScale").getOrElse("alternate"),
     )
 }
