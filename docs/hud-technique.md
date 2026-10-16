@@ -4,6 +4,7 @@ Reference for developers maintaining the HUD engine. It describes how the core-s
 server-driven HUD, what was verified on Minecraft Java 26.3, where it breaks, and why the alternative
 (`end_of_frame`) was rejected. The technique follows BetterHud (https://github.com/toxicity188/BetterHud),
 but the shader is derived from the vanilla source of the target version instead of being maintained by hand.
+To run the engine locally (Paper dev server, dev clients, reload, RCON), see `docs/development.md`.
 
 ## How it works
 
