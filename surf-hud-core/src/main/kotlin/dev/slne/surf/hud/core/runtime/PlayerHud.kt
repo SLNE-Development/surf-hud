@@ -198,17 +198,17 @@ class PlayerHud(override val uuid: UUID, private val engine: HudEngine) : HudPla
         stacks.values.removeAll { it.isEmpty() }
     }
 
-    /** Shows, renames or hides the bossbar, sending only what changed. */
+    /**
+     * Shows or renames the bossbar, sending only what changed. The bar stays shown with an empty name while
+     * nothing is visible: the shader expects it in the top row, and hiding it would let other bossbars take that
+     * row when it is shown again. Only [dispose] hides it.
+     */
     private fun send(audience: Audience, model: HudModel, name: Component, visible: Boolean) {
-        if (!visible) {
-            shownTo?.hideBossBar(bar)
-            shownTo = null
-            return
-        }
+        val shownName = if (visible) name else Component.empty()
         if (bar.color() != model.bossbarColor) bar.color(model.bossbarColor)
-        if (name != lastName) {
-            bar.name(name)
-            lastName = name
+        if (shownName != lastName) {
+            bar.name(shownName)
+            lastName = shownName
         }
         if (shownTo !== audience) {
             shownTo?.hideBossBar(bar)
@@ -243,7 +243,7 @@ class PlayerHud(override val uuid: UUID, private val engine: HudEngine) : HudPla
         refresh()
     }
 
-    /** The player (re)joined: the client lost the bossbar, so it must be shown again. */
+    /** The player (re)joined: the client lost the bossbar, so it is shown again on the next [update]. */
     fun invalidate() {
         synchronized(lock) {
             shownTo = null

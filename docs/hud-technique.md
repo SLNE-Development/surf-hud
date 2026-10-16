@@ -81,6 +81,9 @@ Practical notes:
 ## Known limits
 
 - Vanilla still reserves the bossbar row (19 px) for the HUD line, so other bossbars appear one row lower.
+- The HUD bossbar stays shown (with an empty name when nothing is visible) from the player's first HUD update
+  until they leave, so it keeps the top row. A bossbar the server shows before the player's HUD bar (for
+  example right at join) still pushes the HUD down a row.
 - Moving an element or changing images or fonts changes the generated pack: run `/hud reload`, redeploy the
   merged pack, and clients must download it again. Text, placeholder and condition changes do not.
 - Text uses only the ASCII glyphs of `ascii.png`. Other characters need more glyph sets.

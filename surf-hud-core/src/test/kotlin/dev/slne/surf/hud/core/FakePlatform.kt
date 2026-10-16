@@ -11,8 +11,10 @@ import java.util.*
 
 class RecordingAudience : Audience {
     val bars = mutableListOf<BossBar>()
-    override fun showBossBar(bar: BossBar) { bars += bar }
-    override fun hideBossBar(bar: BossBar) { bars -= bar }
+    var shows = 0
+    var hides = 0
+    override fun showBossBar(bar: BossBar) { bars += bar; shows++ }
+    override fun hideBossBar(bar: BossBar) { bars -= bar; hides++ }
 }
 
 class FakePlatform(override val dataFolder: Path) : HudPlatform {

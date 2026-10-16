@@ -55,7 +55,33 @@ class PlayerHudTest {
         reload(); engine.handleJoin(uuid); tick()
         engine.player(uuid).enabled = false
         tick()
-        assertTrue(audience.bars.isEmpty())
+        assertEquals(Component.empty(), name())
+        assertEquals(0, audience.hides)
+        engine.player(uuid).enabled = true
+        tick()
+        assertNotEquals(Component.empty(), name())
+        assertEquals(1, audience.shows)
+    }
+
+    @Test fun `the bossbar is shown on the first update even when nothing is visible`() {
+        reload()
+        engine.player(uuid).hide("main")
+        engine.handleJoin(uuid); tick()
+        assertEquals(Component.empty(), name())
+    }
+
+    @Test fun `an emptied hud keeps its bossbar shown`() = runBlocking<Unit> {
+        reload(); engine.handleJoin(uuid); tick()
+        val player = engine.player(uuid)
+        player.hide("main")
+        tick()
+        assertEquals(Component.empty(), name())
+        player.show("main")
+        tick()
+        assertNotEquals(Component.empty(), name())
+        assertEquals(1, audience.bars.size)
+        assertEquals(1, audience.shows)
+        assertEquals(0, audience.hides)
     }
 
     @Test fun `unknown ids throw`() {
