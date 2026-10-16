@@ -99,4 +99,15 @@ class DefinitionLoaderTest {
         assertEquals("2h", settings.heads.cacheTtl)
         assertEquals("5s", settings.heads.timeout)
     }
+
+    @Test fun `invalid placement number is reported with its file`() {
+        file("huds/bad.yml", """
+            main:
+              layouts:
+                - { layout: money, anchor: top_left, x: abc }
+        """)
+        val set = DefinitionLoader(ConfigurateTestReader).load(root)
+        assertContains(set.errors.single(), "huds/bad.yml")
+        assertEquals(emptySet(), set.huds.keys)
+    }
 }

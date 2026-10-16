@@ -16,10 +16,32 @@ object PlacementDefinitionSerializer : TypeSerializer<PlacementDefinition> {
         return PlacementDefinition(
             layout = layout,
             anchor = node.node("anchor").string,
-            x = node.node("x").takeUnless { it.virtual() }?.int,
-            y = node.node("y").takeUnless { it.virtual() }?.int,
-            conditions = node.node("conditions").takeUnless { it.virtual() }?.getList(String::class.java),
+            x = number(type, node, "x"),
+            y = number(type, node, "y"),
+            conditions = conditions(type, node),
         )
+    }
+
+    /** Reads a present whole number strictly, so typos such as `x: abc` are reported instead of becoming 0. */
+    private fun number(type: Type, node: ConfigurationNode, key: String): Int? {
+        val child = node.node(key)
+        if (child.virtual()) return null
+        return try {
+            child.get(Int::class.javaObjectType)
+        } catch (e: SerializationException) {
+            throw SerializationException(node, type, "$key must be a whole number")
+        } ?: throw SerializationException(node, type, "$key must be a whole number")
+    }
+
+    private fun conditions(type: Type, node: ConfigurationNode): List<String>? {
+        val child = node.node("conditions")
+        if (child.virtual()) return null
+        if (!child.isList) throw SerializationException(node, type, "conditions must be a list of strings")
+        return try {
+            child.getList(String::class.java)
+        } catch (e: SerializationException) {
+            throw SerializationException(node, type, "conditions must be a list of strings")
+        }
     }
 
     override fun serialize(type: Type, obj: PlacementDefinition?, node: ConfigurationNode) {

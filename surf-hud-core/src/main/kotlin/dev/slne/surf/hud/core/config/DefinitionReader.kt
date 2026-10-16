@@ -12,7 +12,7 @@ interface DefinitionReader {
 /** Production reader backed by surfConfigApi. Note that surfConfigApi writes each file back after loading. */
 class SurfConfigDefinitionReader : DefinitionReader {
     init {
-        surfSpongeConfigSerializers.registerClassSerializer(PlacementDefinition::class.java, PlacementDefinitionSerializer)
+        SERIALIZERS_REGISTERED
     }
 
     override fun <T : Any> read(type: Class<T>, folder: Path, fileName: String): T =
@@ -21,4 +21,9 @@ class SurfConfigDefinitionReader : DefinitionReader {
             configFolder = folder,
             configFileName = fileName,
         ).config
+}
+
+/** Registers the placement serializer on the global surf-api serializers once per JVM. */
+private val SERIALIZERS_REGISTERED by lazy {
+    surfSpongeConfigSerializers.registerClassSerializer(PlacementDefinition::class.java, PlacementDefinitionSerializer)
 }
