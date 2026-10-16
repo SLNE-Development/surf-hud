@@ -155,6 +155,14 @@ class PlayerHudTest {
         assertNull(engine.model)
     }
 
+    @Test fun `vanilla asset errors without a message name the exception`() {
+        engine = testEngine(platform, HudClock { now }, assets = { _, _ -> throw IllegalStateException() })
+        val error = reload().errors.single()
+        assertFalse(error.contains("null"), error)
+        assertContains(error, "IllegalStateException")
+        assertContains(error, "internet access")
+    }
+
     @Test fun `reload re-renders layouts whose text changed`() {
         reload(); engine.handleJoin(uuid); tick()
         val before = name()

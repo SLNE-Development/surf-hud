@@ -134,7 +134,10 @@ open class HudEngine(
         val assets = try {
             assetProvider(root.resolve("cache"), settings.minecraftVersion)
         } catch (e: Exception) {
-            return failed(listOf("Could not load the vanilla assets of Minecraft ${settings.minecraftVersion}: ${e.message}"))
+            return failed(listOf(
+                "Could not load the vanilla assets of Minecraft ${settings.minecraftVersion}: ${e.message ?: e.toString()} " +
+                    "(the server needs internet access once to fill cache/${settings.minecraftVersion}/)"
+            ))
         }
         val model = when (val result = Compiler(assets, root).compile(definitions)) {
             is CompileResult.Failure -> return failed(result.errors)
