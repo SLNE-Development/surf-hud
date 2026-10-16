@@ -25,7 +25,7 @@ abstract class MinecraftInstallationTask : DefaultTask() {
     @get:Internal
     abstract val cacheDirectory: DirectoryProperty
 
-    @Internal
+    /** The cached installation of [version]; a plain function, so Gradle does not treat it as a task input. */
     protected fun installation() = MinecraftInstallation(cacheDirectory.get().asFile.toPath(), version.get())
 }
 
