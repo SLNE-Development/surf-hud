@@ -1,0 +1,33 @@
+{
+    "namespace": "surf",
+    "description": "surf-hud core shader HUD prototype",
+    "packFormat": 97,
+    "bossbar": {
+        "color": "pink",
+        "row": 0
+    },
+    "glyphSets": {
+        "text": { "type": "ascii" },
+        "icon": {
+            "type": "images",
+            "images": {
+                "heart": "icons/heart.png",
+                "coin": "icons/coin.png",
+                "clock": "icons/clock.png",
+                "star": "icons/star.png",
+                "player": "icons/player.png"
+            }
+        },
+        "panel": { "type": "strip", "texture": "strips/panel.png" },
+        "bar_bg": { "type": "strip", "texture": "strips/bar_bg.png" },
+        "bar_fill": { "type": "strip", "texture": "strips/bar_fill.png" }
+    },
+    "elements": {
+        "title": { "anchor": "top_center", "offset": [0, 4], "layers": { "text": 0 } },
+        "status": { "anchor": "top_left", "offset": [4, 4], "layers": { "icon": 0, "text": 1 } },
+        "timer": { "anchor": "top_right", "offset": [-4, 4], "layers": { "panel": 0, "text": 3 } },
+        "money": { "anchor": "bottom_right", "offset": [-4, -17], "layers": { "panel": 0, "icon": 2, "text": 3 } },
+        "health": { "anchor": "bottom_right", "offset": [-4, -30], "layers": { "icon": 0, "bar_bg": 1, "bar_fill": 2, "text": 1 } },
+        "player": { "anchor": "bottom_left", "offset": [4, -14], "layers": { "icon": 0, "text": 1 } }
+    }
+}
