@@ -1,6 +1,6 @@
 package dev.slne.surf.hud.core
 
-import dev.slne.surf.hud.core.config.DefinitionReader
+import dev.slne.surf.hud.core.config.definition.DefinitionReader
 import dev.slne.surf.hud.core.pack.HttpGet
 import dev.slne.surf.hud.core.placeholder.HudClock
 import dev.slne.surf.hud.core.platform.HudPlatform
@@ -13,8 +13,13 @@ class RecordingAudience : Audience {
     val bars = mutableListOf<BossBar>()
     var shows = 0
     var hides = 0
-    override fun showBossBar(bar: BossBar) { bars += bar; shows++ }
-    override fun hideBossBar(bar: BossBar) { bars -= bar; hides++ }
+    override fun showBossBar(bar: BossBar) {
+        bars += bar; shows++
+    }
+
+    override fun hideBossBar(bar: BossBar) {
+        bars -= bar; hides++
+    }
 }
 
 class FakePlatform(override val dataFolder: Path) : HudPlatform {
@@ -36,4 +41,11 @@ fun testEngine(
     clock: HudClock,
     reader: DefinitionReader = ConfigurateTestReader,
     assets: (Path, String) -> dev.slne.surf.hud.core.pack.VanillaAssets = { _, _ -> TestAssets.vanilla() },
-) = HudEngine(platform, reader, assets, emptyList(), HttpGet { error("no network in tests") }, clock)
+) = HudEngine(
+    platform,
+    reader,
+    assets,
+    emptyList(),
+    HttpGet { error("no network in tests") },
+    clock
+)

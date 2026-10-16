@@ -1,24 +1,16 @@
 package dev.slne.surf.hud.core
 
 import dev.slne.surf.api.core.util.logger
-import dev.slne.surf.hud.api.HudPlayer
-import dev.slne.surf.hud.api.PlaceholderRegistry
-import dev.slne.surf.hud.api.PopupHandle
-import dev.slne.surf.hud.api.ReloadResult
-import dev.slne.surf.hud.api.SurfHud
-import dev.slne.surf.hud.core.config.DefinitionLoader
-import dev.slne.surf.hud.core.config.DefinitionReader
+import dev.slne.surf.hud.api.*
 import dev.slne.surf.hud.core.config.Durations
+import dev.slne.surf.hud.core.config.definition.DefinitionLoader
+import dev.slne.surf.hud.core.config.definition.DefinitionReader
 import dev.slne.surf.hud.core.expression.Value
 import dev.slne.surf.hud.core.head.HeadPixels
 import dev.slne.surf.hud.core.head.HeadService
 import dev.slne.surf.hud.core.head.SkinFace
 import dev.slne.surf.hud.core.head.SkinSource
-import dev.slne.surf.hud.core.model.CompileResult
-import dev.slne.surf.hud.core.model.Compiler
-import dev.slne.surf.hud.core.model.HeadSpec
-import dev.slne.surf.hud.core.model.HudModel
-import dev.slne.surf.hud.core.model.Placement
+import dev.slne.surf.hud.core.model.*
 import dev.slne.surf.hud.core.pack.HttpGet
 import dev.slne.surf.hud.core.pack.PackGenerator
 import dev.slne.surf.hud.core.pack.PackWriter
@@ -83,14 +75,22 @@ open class HudEngine(
 
     /** The player's HUD state, created (with the default HUDs shown) on first access. */
     fun hud(uuid: UUID): PlayerHud = players.computeIfAbsent(uuid) { id ->
-        PlayerHud(id, this).also { player -> model?.let { player.onModelChanged(it, first = true) } }
+        PlayerHud(id, this).also { player ->
+            model?.let {
+                player.onModelChanged(
+                    it,
+                    first = true
+                )
+            }
+        }
     }
 
     /** The active model; throws [IllegalStateException] before the first successful reload. */
     fun requireModel(): HudModel = requireRuntime().model
 
     /** The active runtime; throws [IllegalStateException] before the first successful reload. */
-    fun requireRuntime(): Runtime = runtime ?: throw IllegalStateException("surf-hud has not loaded a configuration yet")
+    fun requireRuntime(): Runtime =
+        runtime ?: throw IllegalStateException("surf-hud has not loaded a configuration yet")
 
     /** The player joined: the bossbar is shown again on the next tick. */
     fun handleJoin(uuid: UUID) = hud(uuid).invalidate()
@@ -107,10 +107,18 @@ open class HudEngine(
 
     /** A fresh per-player placeholder cache using the active model's default intervals. */
     fun newPlaceholderCache() = PlaceholderCache(
-        placeholderRegistry, clock, requireModel().settings.placeholderIntervals.millis(), warnings, resolverErrors,
+        placeholderRegistry,
+        clock,
+        requireModel().settings.placeholderIntervals.millis(),
+        warnings,
+        resolverErrors,
     )
 
-    override suspend fun popup(id: String, viewers: Collection<UUID>, variables: Map<String, Any?>): List<PopupHandle> =
+    override suspend fun popup(
+        id: String,
+        viewers: Collection<UUID>,
+        variables: Map<String, Any?>
+    ): List<PopupHandle> =
         coroutineScope { viewers.map { async { hud(it).popup(id, variables) } }.awaitAll() }
 
     override suspend fun reload(): ReloadResult = reloadMutex.withLock {
@@ -134,10 +142,12 @@ open class HudEngine(
         val assets = try {
             assetProvider(root.resolve("cache"), settings.minecraftVersion)
         } catch (e: Exception) {
-            return failed(listOf(
-                "Could not load the vanilla assets of Minecraft ${settings.minecraftVersion}: ${e.message ?: e.toString()} " +
-                    "(the server needs internet access once to fill cache/${settings.minecraftVersion}/)"
-            ))
+            return failed(
+                listOf(
+                    "Could not load the vanilla assets of Minecraft ${settings.minecraftVersion}: ${e.message ?: e.toString()} " +
+                            "(the server needs internet access once to fill cache/${settings.minecraftVersion}/)"
+                )
+            )
         }
         val model = when (val result = Compiler(assets, root).compile(definitions)) {
             is CompileResult.Failure -> return failed(result.errors)
@@ -149,18 +159,30 @@ open class HudEngine(
             return failed(listOf("Could not write the resource pack: ${e.message}"))
         }
         val heads = HeadService(
-            skinSources, http, root.resolve("cache/heads"), Durations.parse(settings.heads.cacheTtl), clock, scope,
+            skinSources,
+            http,
+            root.resolve("cache/heads"),
+            Durations.parse(settings.heads.cacheTtl),
+            clock,
+            scope,
             fallbackHead(root.resolve("assets").resolve(settings.heads.fallback)),
         )
         val first = runtime == null
         runtime = Runtime(model, LayoutRenderer(model, TextRenderer(warnings)), heads)
         players.values.forEach { it.onModelChanged(model, first) }
-        log.atInfo().log("Loaded %d HUDs and %d popups in %d slots; pack SHA-1 %s", model.huds.size, model.popups.size, model.slots.size, hash)
+        log.atInfo().log(
+            "Loaded %d HUDs and %d popups in %d slots; pack SHA-1 %s",
+            model.huds.size,
+            model.popups.size,
+            model.slots.size,
+            hash
+        )
         return ReloadResult(emptyList(), hash)
     }
 
     /** Regenerates the pack from the active model; waits for a running reload. */
-    suspend fun generatePack(): String = reloadMutex.withLock { withContext(Dispatchers.IO) { writePack(requireModel()) } }
+    suspend fun generatePack(): String =
+        reloadMutex.withLock { withContext(Dispatchers.IO) { writePack(requireModel()) } }
 
     private fun writePack(model: HudModel): String {
         val root = platform.dataFolder
@@ -179,8 +201,16 @@ open class HudEngine(
     /** Reads the fallback head (an 8x8 face or a full skin); a generated face when missing or unreadable. */
     private fun fallbackHead(file: Path): HeadPixels {
         if (!file.exists()) return HeadPixels.placeholder("fallback")
-        val image = runCatching { ImageIO.read(file.toFile()) }.getOrNull() ?: return HeadPixels.placeholder("fallback")
-        return if (image.width == 8 && image.height == 8) HeadPixels(Array(8) { row -> IntArray(8) { image.getRGB(it, row) } })
+        val image = runCatching { ImageIO.read(file.toFile()) }.getOrNull()
+            ?: return HeadPixels.placeholder("fallback")
+        return if (image.width == 8 && image.height == 8) HeadPixels(Array(8) { row ->
+            IntArray(8) {
+                image.getRGB(
+                    it,
+                    row
+                )
+            }
+        })
         else SkinFace.extract(image)
     }
 
@@ -188,21 +218,36 @@ open class HudEngine(
      * With `heads.await-loaded`, waits (up to the timeout) for every head the placements would draw. Skips
      * waiting when the player is offline or the player's thread does not run the lookup within the timeout.
      */
-    internal suspend fun awaitHeads(player: PlayerHud, placements: List<Placement>, variables: Map<String, Value>) {
+    internal suspend fun awaitHeads(
+        player: PlayerHud,
+        placements: List<Placement>,
+        variables: Map<String, Value>
+    ) {
         val runtime = requireRuntime()
         val settings = runtime.model.settings.heads
         if (!settings.awaitLoaded) return
         if (placements.none { p -> p.layout.elements.any { it is HeadSpec } }) return
         val timeout = Durations.parse(settings.timeout)
-        val names = withTimeoutOrNull(timeout) { onPlayerThread(player.uuid) { player.headNames(placements, variables) } } ?: return
-        coroutineScope { names.distinct().map { async { runtime.heads.await(it, timeout) } }.awaitAll() }
+        val names = withTimeoutOrNull(timeout) {
+            onPlayerThread(player.uuid) {
+                player.headNames(
+                    placements,
+                    variables
+                )
+            }
+        } ?: return
+        coroutineScope {
+            names.distinct().map { async { runtime.heads.await(it, timeout) } }.awaitAll()
+        }
     }
 
     /** Runs [block] on the player's thread; `null` when the player is offline or [block] failed. */
-    private suspend fun <T> onPlayerThread(uuid: UUID, block: () -> T): T? = suspendCancellableCoroutine { continuation ->
-        val scheduled = platform.execute(uuid) { continuation.resume(runCatching(block).getOrNull()) }
-        if (!scheduled) continuation.resume(null)
-    }
+    private suspend fun <T> onPlayerThread(uuid: UUID, block: () -> T): T? =
+        suspendCancellableCoroutine { continuation ->
+            val scheduled =
+                platform.execute(uuid) { continuation.resume(runCatching(block).getOrNull()) }
+            if (!scheduled) continuation.resume(null)
+        }
 
     /** Hides every player's HUD and cancels background work. */
     fun shutdown() {

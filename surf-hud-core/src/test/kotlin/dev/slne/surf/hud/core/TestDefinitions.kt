@@ -1,6 +1,6 @@
 package dev.slne.surf.hud.core
 
-import dev.slne.surf.hud.core.config.DefinitionLoader
+import dev.slne.surf.hud.core.config.definition.DefinitionLoader
 import dev.slne.surf.hud.core.model.CompileResult
 import dev.slne.surf.hud.core.model.Compiler
 import dev.slne.surf.hud.core.model.HudModel
@@ -62,9 +62,13 @@ object TestDefinitions {
     )
 
     fun write(root: Path, files: Map<String, String>) {
-        files.forEach { (path, text) -> root.resolve(path).also { it.parent.createDirectories() }.writeText(text.trimIndent()) }
-        root.resolve("assets/icons/coin.png").also { it.parent.createDirectories() }.writeBytes(TestAssets.png(7, 9))
-        root.resolve("assets/strips/panel.png").also { it.parent.createDirectories() }.writeBytes(TestAssets.png(3, 11))
+        files.forEach { (path, text) ->
+            root.resolve(path).also { it.parent.createDirectories() }.writeText(text.trimIndent())
+        }
+        root.resolve("assets/icons/coin.png").also { it.parent.createDirectories() }
+            .writeBytes(TestAssets.png(7, 9))
+        root.resolve("assets/strips/panel.png").also { it.parent.createDirectories() }
+            .writeBytes(TestAssets.png(3, 11))
     }
 
     fun load(root: Path, files: Map<String, String> = standardFiles()) =

@@ -1,6 +1,6 @@
 package dev.slne.surf.hud.core.model
 
-import dev.slne.surf.hud.core.config.HudSettings
+import dev.slne.surf.hud.core.config.HudSettingsConfig
 import dev.slne.surf.hud.core.pack.VanillaAssets
 import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.key.Key
@@ -13,7 +13,7 @@ data class FontSpec(val key: Key, val slot: Int, val y: Int, val glyphSets: Set<
 
 /** The compiled, immutable configuration: what the pack contains and what the renderer draws. */
 class HudModel(
-    val settings: HudSettings,
+    val settings: HudSettingsConfig,
     val assets: VanillaAssets,
     val bossbarColor: BossBar.Color,
     val glyphSets: Map<String, GlyphSet>,
@@ -29,7 +29,8 @@ class HudModel(
     /** Any font of [slot]; used for cursor moves that are not attached to a glyph. */
     fun slotFont(slot: Int): Key = slotFonts.getValue(slot)
 
-    private val slotFonts: Map<Int, Key> = fonts.values.groupBy { it.slot }.mapValues { (_, fonts) -> fonts.first().key }
+    private val slotFonts: Map<Int, Key> =
+        fonts.values.groupBy { it.slot }.mapValues { (_, fonts) -> fonts.first().key }
 
     companion object {
         fun fontKey(namespace: String, slot: Int, element: ElementSpec): Key {

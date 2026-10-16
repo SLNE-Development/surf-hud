@@ -1,37 +1,51 @@
 package dev.slne.surf.hud.core.config
 
 import dev.slne.surf.hud.core.ConfigurateTestReader
+import dev.slne.surf.hud.core.config.definition.DefinitionLoader
+import dev.slne.surf.hud.core.config.definition.definitions.PlacementDefinition
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class DefinitionLoaderTest {
-    @TempDir lateinit var root: Path
+    @TempDir
+    lateinit var root: Path
 
     private fun file(path: String, text: String) {
         root.resolve(path).also { it.parent.createDirectories() }.writeText(text.trimIndent())
     }
 
-    @Test fun `loads every folder with several entries per file`() {
-        file("images/a.yml", """
+    @Test
+    fun `loads every folder with several entries per file`() {
+        file(
+            "images/a.yml", """
             coin: { type: single, file: icons/coin.png }
             panel: { type: strip, file: strips/panel.png }
-        """)
-        file("layouts/sub/b.yml", """
+        """
+        )
+        file(
+            "layouts/sub/b.yml", """
             money:
               align: right
               elements:
                 - { type: text, x: 3, text: "[money]" }
-        """)
-        file("huds/main.yml", """
+        """
+        )
+        file(
+            "huds/main.yml", """
             main:
               default: true
               layouts:
                 - { layout: money, anchor: bottom_right, x: -4, y: -17 }
-        """)
-        file("popups/vote.yml", """
+        """
+        )
+        file(
+            "popups/vote.yml", """
             vote:
               anchor: center
               max-stack: 3
@@ -39,7 +53,8 @@ class DefinitionLoaderTest {
               layouts:
                 - money
                 - { layout: money, y: 10 }
-        """)
+        """
+        )
         val set = DefinitionLoader(ConfigurateTestReader).load(root)
 
         assertEquals(emptyList(), set.errors)
@@ -47,23 +62,36 @@ class DefinitionLoaderTest {
         assertEquals("images/a.yml", set.images.getValue("coin").file)
         assertEquals("layouts/sub/b.yml", set.layouts.getValue("money").file)
         assertEquals("[money]", set.layouts.getValue("money").value.elements!!.single().text)
-        assertEquals(PlacementDefinition("money", "bottom_right", -4, -17), set.huds.getValue("main").value.layouts!!.single())
+        assertEquals(
+            PlacementDefinition("money", "bottom_right", -4, -17),
+            set.huds.getValue("main").value.layouts!!.single()
+        )
         val vote = set.popups.getValue("vote").value
         assertEquals(3, vote.maxStack)
         assertEquals(listOf(0, 12), vote.stackOffset)
-        assertEquals(listOf(PlacementDefinition("money"), PlacementDefinition("money", y = 10)), vote.layouts)
+        assertEquals(
+            listOf(PlacementDefinition("money"), PlacementDefinition("money", y = 10)),
+            vote.layouts
+        )
     }
 
-    @Test fun `numbers are read into expression strings`() {
-        file("layouts/a.yml", """
+    @Test
+    fun `numbers are read into expression strings`() {
+        file(
+            "layouts/a.yml", """
             bar:
               elements:
                 - { type: image, image: panel, width: 60 }
-        """)
-        assertEquals("60", DefinitionLoader(ConfigurateTestReader).load(root).layouts.getValue("bar").value.elements!!.single().width)
+        """
+        )
+        assertEquals(
+            "60",
+            DefinitionLoader(ConfigurateTestReader).load(root).layouts.getValue("bar").value.elements!!.single().width
+        )
     }
 
-    @Test fun `duplicate ids are reported with both files`() {
+    @Test
+    fun `duplicate ids are reported with both files`() {
         file("texts/a.yml", "default: { type: ascii }")
         file("texts/b.yml", "default: { type: ascii, height: 16 }")
         val error = DefinitionLoader(ConfigurateTestReader).load(root).errors.single()
@@ -71,7 +99,8 @@ class DefinitionLoaderTest {
         assertContains(error, "texts/a.yml")
     }
 
-    @Test fun `unreadable files are reported and the rest still loads`() {
+    @Test
+    fun `unreadable files are reported and the rest still loads`() {
         file("texts/broken.yml", "default: [ unclosed")
         file("texts/ok.yml", "title: { type: ascii }")
         val set = DefinitionLoader(ConfigurateTestReader).load(root)
@@ -79,19 +108,26 @@ class DefinitionLoaderTest {
         assertContains(set.errors.single(), "texts/broken.yml")
     }
 
-    @Test fun `missing config yml gives defaults`() {
+    @Test
+    fun `missing config yml gives defaults`() {
         val settings = DefinitionLoader(ConfigurateTestReader).load(root).settings
         assertEquals("surf", settings.namespace)
         assertEquals(2, settings.updateInterval)
-        assertEquals(mapOf("papi" to 1000L, "mini" to 1000L), settings.placeholderIntervals.millis())
+        assertEquals(
+            mapOf("papi" to 1000L, "mini" to 1000L),
+            settings.placeholderIntervals.millis()
+        )
     }
 
-    @Test fun `config yml keys are dashed`() {
-        file("config.yml", """
+    @Test
+    fun `config yml keys are dashed`() {
+        file(
+            "config.yml", """
             minecraft-version: "26.4"
             update-interval: 5
             heads: { await-loaded: false, cache-ttl: 2h }
-        """)
+        """
+        )
         val settings = DefinitionLoader(ConfigurateTestReader).load(root).settings
         assertEquals("26.4", settings.minecraftVersion)
         assertEquals(5, settings.updateInterval)
@@ -100,12 +136,15 @@ class DefinitionLoaderTest {
         assertEquals("5s", settings.heads.timeout)
     }
 
-    @Test fun `invalid placement number is reported with its file`() {
-        file("huds/bad.yml", """
+    @Test
+    fun `invalid placement number is reported with its file`() {
+        file(
+            "huds/bad.yml", """
             main:
               layouts:
                 - { layout: money, anchor: top_left, x: abc }
-        """)
+        """
+        )
         val set = DefinitionLoader(ConfigurateTestReader).load(root)
         assertContains(set.errors.single(), "huds/bad.yml")
         assertEquals(emptySet(), set.huds.keys)

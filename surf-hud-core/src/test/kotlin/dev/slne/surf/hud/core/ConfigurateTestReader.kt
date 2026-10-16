@@ -1,8 +1,8 @@
 package dev.slne.surf.hud.core
 
-import dev.slne.surf.hud.core.config.DefinitionReader
-import dev.slne.surf.hud.core.config.PlacementDefinition
 import dev.slne.surf.hud.core.config.PlacementDefinitionSerializer
+import dev.slne.surf.hud.core.config.definition.DefinitionReader
+import dev.slne.surf.hud.core.config.definition.definitions.PlacementDefinition
 import org.spongepowered.configurate.kotlin.objectMapperFactory
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader
 import java.nio.file.Path
@@ -15,7 +15,10 @@ object ConfigurateTestReader : DefinitionReader {
             .defaultOptions { options ->
                 options.serializers { serializers ->
                     serializers.registerAnnotatedObjects(objectMapperFactory())
-                    serializers.register(PlacementDefinition::class.java, PlacementDefinitionSerializer)
+                    serializers.register(
+                        PlacementDefinition::class.java,
+                        PlacementDefinitionSerializer
+                    )
                 }
             }
             .build()

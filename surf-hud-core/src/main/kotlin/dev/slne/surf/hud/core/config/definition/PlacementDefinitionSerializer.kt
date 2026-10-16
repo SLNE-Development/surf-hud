@@ -1,5 +1,6 @@
 package dev.slne.surf.hud.core.config
 
+import dev.slne.surf.hud.core.config.definition.definitions.PlacementDefinition
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
@@ -9,10 +10,18 @@ import java.lang.reflect.Type
 object PlacementDefinitionSerializer : TypeSerializer<PlacementDefinition> {
     override fun deserialize(type: Type, node: ConfigurationNode): PlacementDefinition {
         if (!node.isMap) {
-            val layout = node.string ?: throw SerializationException(node, type, "expected a layout id or a placement map")
+            val layout = node.string ?: throw SerializationException(
+                node,
+                type,
+                "expected a layout id or a placement map"
+            )
             return PlacementDefinition(layout)
         }
-        val layout = node.node("layout").string ?: throw SerializationException(node, type, "placement needs 'layout'")
+        val layout = node.node("layout").string ?: throw SerializationException(
+            node,
+            type,
+            "placement needs 'layout'"
+        )
         return PlacementDefinition(
             layout = layout,
             anchor = node.node("anchor").string,
@@ -36,7 +45,11 @@ object PlacementDefinitionSerializer : TypeSerializer<PlacementDefinition> {
     private fun conditions(type: Type, node: ConfigurationNode): List<String>? {
         val child = node.node("conditions")
         if (child.virtual()) return null
-        if (!child.isList) throw SerializationException(node, type, "conditions must be a list of strings")
+        if (!child.isList) throw SerializationException(
+            node,
+            type,
+            "conditions must be a list of strings"
+        )
         return try {
             child.getList(String::class.java)
         } catch (e: SerializationException) {

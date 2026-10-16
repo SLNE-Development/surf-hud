@@ -3,7 +3,7 @@ package dev.slne.surf.hud.paper
 import com.google.auto.service.AutoService
 import dev.slne.surf.hud.api.SurfHud
 import dev.slne.surf.hud.core.HudEngine
-import dev.slne.surf.hud.core.config.SurfConfigDefinitionReader
+import dev.slne.surf.hud.core.config.definition.SurfConfigDefinitionReader
 import dev.slne.surf.hud.core.head.MojangSkinSource
 import dev.slne.surf.hud.core.pack.JdkHttpGet
 import dev.slne.surf.hud.core.pack.VanillaAssetFetcher
