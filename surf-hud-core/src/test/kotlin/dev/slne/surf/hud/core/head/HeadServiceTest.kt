@@ -52,7 +52,7 @@ class HeadServiceTest {
         assertEquals(0xFF112233.toInt(), head.argb[0][0])
     }
 
-    @Test fun `loads are cached in memory and on disk`() = runBlocking {
+    @Test fun `loads are cached in memory and on disk`() = runBlocking<Unit> {
         val skins = mapOf("Notch" to skin(0xFF112233.toInt(), null))
         val first = service(skins)
         first.await("Notch", 5.seconds)
