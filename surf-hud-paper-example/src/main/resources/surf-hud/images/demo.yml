@@ -1,0 +1,10 @@
+heart: { type: single, file: icons/heart.png }
+coin: { type: single, file: icons/coin.png }
+clock: { type: single, file: icons/clock.png }
+star: { type: single, file: icons/star.png }
+player: { type: single, file: icons/player.png }
+panel: { type: strip, file: strips/panel.png }
+bar_bg: { type: strip, file: strips/bar_bg.png }
+bar_fill: { type: strip, file: strips/bar_fill.png }
+bar_tint: { type: strip, file: strips/bar_tint.png }
+head_big: { type: pixel, size: 5 }

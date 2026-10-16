@@ -1,0 +1,9 @@
+vote:
+  anchor: center
+  unique: true
+  layouts:
+    - { layout: vote_title, x: -65, y: -80 }
+    - { layout: vote_heads, x: -65, y: -60 }
+    - { layout: vote_names, x: -65, y: -16 }
+    - { layout: vote_bar, x: -65, y: 8 }
+    - { layout: vote_timer, x: -65, y: 18 }

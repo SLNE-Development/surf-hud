@@ -1,0 +1,23 @@
+vote_title:
+  elements:
+    - { type: text, font: title, x: 65, align: center, text: "<gold>[title]</gold>" }
+vote_heads:
+  elements:
+    - { type: head, image: head_big, player: "[left]", brightness: "[left_brightness]" }
+    - { type: text, font: vs, x: 65, y: 8, align: center, text: "<red><bold>VS</bold></red>" }
+    - { type: head, image: head_big, x: 90, player: "[right]", brightness: "[right_brightness]" }
+vote_names:
+  elements:
+    - { type: text, x: 20, align: center, text: "<aqua>[left]</aqua>" }
+    - { type: text, x: 110, align: center, text: "<light_purple>[right]</light_purple>" }
+vote_bar:
+  elements:
+    - { type: text, x: -4, align: right, text: "<aqua>[left_votes]</aqua>" }
+    - { type: image, image: bar_bg, y: 1, width: 130 }
+    - { type: bar, image: bar_tint, y: 2, width: 130, value: "[time_left] / [time_total]", color: "#55FFFF" }
+    - { type: text, x: 65, align: center, text: "{[left_votes] / max([left_votes] + [right_votes], 1) * 100 | 0}% : {[right_votes] / max([left_votes] + [right_votes], 1) * 100 | 0}%" }
+    - { type: text, x: 134, text: "<light_purple>[right_votes]</light_purple>" }
+vote_timer:
+  elements:
+    - { type: image, image: clock, x: 52, y: -1 }
+    - { type: text, x: 62, text: "[time_left]s" }

@@ -1,0 +1,9 @@
+demo:
+  default: true
+  layouts:
+    - { layout: demo_title, anchor: top_center, x: 0, y: 4 }
+    - { layout: demo_status, anchor: top_left, x: 4, y: 4 }
+    - { layout: demo_timer, anchor: top_right, x: -4, y: 4 }
+    - { layout: demo_money, anchor: bottom_right, x: -4, y: -17 }
+    - { layout: demo_health, anchor: bottom_right, x: -4, y: -30 }
+    - { layout: demo_player, anchor: bottom_left, x: 4, y: -14 }

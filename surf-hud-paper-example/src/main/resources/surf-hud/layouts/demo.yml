@@ -1,0 +1,32 @@
+demo_title:
+  align: center
+  elements:
+    - { type: text, text: "<gradient:#5BC0EB:#9BC53D>surf-hud demo</gradient>" }
+demo_status:
+  elements:
+    - { type: image, image: star }
+    - { type: text, x: 10, y: 1, text: "<yellow>[stars]</yellow>" }
+    - { type: image, image: heart, x: 30 }
+    - { type: text, x: 40, y: 1, text: "<red>{[health] | 0}</red>" }
+demo_timer:
+  align: right
+  elements:
+    - { type: image, image: panel, width: "[width:clock_text] + 8" }
+    - { id: clock_text, type: text, x: 4, y: 3, text: "<aqua>[time]</aqua>" }
+demo_money:
+  align: right
+  elements:
+    - { type: image, image: panel, width: "[width:money_text] + 17" }
+    - { type: image, image: coin, x: 3, y: 2 }
+    - { id: money_text, type: text, x: 13, y: 3, text: "<gold>{[money] | #,##0}</gold>" }
+demo_health:
+  align: right
+  elements:
+    - { type: image, image: heart }
+    - { type: image, image: bar_bg, x: 10, y: 1, width: 60 }
+    - { type: bar, image: bar_fill, x: 10, y: 2, width: 60, value: "[health] / [max_health]" }
+    - { type: text, x: 74, y: 1, text: "{[health] / [max_health] * 100 | 0}%" }
+demo_player:
+  elements:
+    - { type: image, image: player }
+    - { type: text, x: 10, y: 1, text: "[name] <gray>([rank])</gray>" }
