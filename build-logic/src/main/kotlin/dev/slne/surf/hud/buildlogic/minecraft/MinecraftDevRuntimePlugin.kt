@@ -59,8 +59,9 @@ class MinecraftDevRuntimePlugin : Plugin<Project> {
             group = GROUP
             description = "Copies the configured resource packs into the dev client's resourcepacks folder"
             into(clientGameDir.map { it.dir("resourcepacks") })
-            extension.resourcePacks.get().forEach { (name, dir) ->
-                from(dir) { into(name) }
+            // getting() keeps the producing task of generated packs as a dependency.
+            extension.resourcePacks.keySet().get().forEach { name ->
+                from(extension.resourcePacks.getting(name)) { into(name) }
             }
             // Packs dropped into the folder by hand are kept; only the configured packs are replaced.
             preserve {
@@ -83,6 +84,8 @@ class MinecraftDevRuntimePlugin : Plugin<Project> {
                 extension.joinDevServer.zip(extension.serverPort) { join, port -> if (join) "localhost:$port" else "" }
                     .filter { it.isNotEmpty() }
             )
+            // Dev clients start muted; minecraftDev.clientOptions can override this.
+            options.put("soundCategory_master", "0.0")
             options.putAll(extension.clientOptions)
             // -Pminecraft.enableResourcePacks=false starts with only the vanilla pack, e.g. for an FPS baseline.
             val enablePacks = providers.gradleProperty("minecraft.enableResourcePacks").map(String::toBoolean).orElse(true)
@@ -111,6 +114,8 @@ class MinecraftDevRuntimePlugin : Plugin<Project> {
                         "enable-rcon" to "true",
                         "rcon.port" to extension.rconPort.get().toString(),
                         "rcon.password" to extension.rconPassword.get(),
+                        // devRcon and demo tools send many commands; do not echo them into every op's chat.
+                        "broadcast-rcon-to-ops" to "false",
                     )
                 }
             )

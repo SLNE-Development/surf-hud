@@ -2,6 +2,7 @@ package dev.slne.surf.hud.buildlogic.minecraft
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.zip.ZipFile
 
 /**
  * The launcher-style cache of one Minecraft version: `versions/<id>/`, `libraries/` and `assets/`
@@ -46,6 +47,12 @@ class MinecraftInstallation(private val cacheDir: Path, val versionId: String) {
     /** Downloads the dedicated server jar (the self-extracting bundler). */
     fun prepareServer(downloader: Downloader) {
         downloader.fetch(resolve(downloader).download("server", serverJar))
+    }
+
+    /** Reads a vanilla asset such as `assets/minecraft/shaders/core/text.vsh` from the client jar. */
+    fun readClientEntry(path: String): ByteArray = ZipFile(clientJar.toFile()).use { zip ->
+        val entry = zip.getEntry(path) ?: error("$path is not in the Minecraft $versionId client jar")
+        zip.getInputStream(entry).use { it.readAllBytes() }
     }
 
     /** The client classpath: every allowed library followed by the client jar. */

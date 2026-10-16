@@ -5,6 +5,7 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 
 /** Configures the vanilla dev client and server started by `runDevClient` and `runDevServer`. */
 abstract class MinecraftDevExtension {
@@ -49,6 +50,11 @@ abstract class MinecraftDevExtension {
     abstract val acceptEula: Property<Boolean>
 
     fun resourcePack(name: String, directory: Directory) {
+        resourcePacks.put(name, directory)
+    }
+
+    /** Adds a generated pack; pass a task output so the client launch builds the pack first. */
+    fun resourcePack(name: String, directory: Provider<Directory>) {
         resourcePacks.put(name, directory)
     }
 }
