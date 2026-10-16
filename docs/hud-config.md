@@ -28,6 +28,9 @@ build/pack/         generated pack, unzipped
 A definition file can hold any number of entries, keyed by id. Ids must be unique per type across all files.
 Two layouts with the same id are an error, even in different files.
 
+surf-hud writes every definition file back after loading it. Flow style (`{ ... }`, `[ ... ]`) becomes block
+style and the layout of the file may change. Keep a copy if the formatting matters to you.
+
 If a reload finds any error, the previous setup stays active and all errors are listed together. An error names
 the file and path, for example `layouts/stats.yml > money > elements[2].width: unknown function 'mx'`.
 
@@ -52,6 +55,11 @@ output:
 ```
 
 The values above are the defaults.
+
+`output.folder` is deleted and rewritten on every pack write. Both output paths must lie inside the plugin
+folder, but not be the plugin folder itself, `config.yml`, or in `assets`, `cache`, `images`, `texts`,
+`layouts`, `huds` or `popups`. The zip must not lie inside `output.folder`. surf-hud marks the folder it writes
+with a `.surf-hud-pack` file and refuses to delete an existing, non-empty folder without that file.
 
 With `heads.await-loaded: false`, the fallback head is drawn at once and replaced when the skin has loaded.
 If `assets/heads/fallback.png` is missing, a fallback head is generated.
@@ -134,8 +142,8 @@ Fields by type:
 | | `player` | none | Expression giving a player name or UUID. |
 | | `brightness` | `1` | Expression, 0..1. |
 
-Text supports color, bold and gradients. Italic, underline, strikethrough and obfuscated are ignored (one
-warning per element). Bold adds 1 px per character.
+Text supports color, bold and gradients. Italic, underline, strikethrough and obfuscated are ignored (the
+warning is logged once per decoration). Bold adds 1 px per character.
 
 Excerpt from `layouts/demo.yml`:
 
@@ -151,7 +159,7 @@ demo_health:
   elements:
     - { type: image, image: heart }
     - { type: image, image: bar_bg, x: 10, y: 1, width: 60 }
-    - { type: bar, image: bar_fill, x: 10, y: 2, width: 60, value: "[health] / [max_health]" }
+    - { type: bar, image: bar_fill, x: 11, y: 2, width: 58, value: "[health] / [max_health]" }
     - { type: text, x: 74, y: 1, text: "{[health] / [max_health] * 100 | 0}%" }
 ```
 
@@ -335,6 +343,9 @@ You must redeploy the merged pack after changing:
 - images and their files
 - texts (fonts and heights)
 - anything that changes the number or order of placements (slots), such as adding a layout to a HUD or popup
+- an element's `image`, `font` or `type`
+- adding or removing elements, layouts, placements or popups
+- a popup's `max-stack`
 
 You do not need to redeploy after changing:
 

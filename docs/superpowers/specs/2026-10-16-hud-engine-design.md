@@ -85,7 +85,7 @@ Each tick (every `update-interval` ticks, per player, on the player's entity sch
 ## Directory layout
 
 ```
-plugins/surf-hud/
+plugins/surf-hud-paper/
   config.yml
   images/*.yml
   texts/*.yml
@@ -124,6 +124,12 @@ output:
   zip: build/surf-hud.zip
   folder: build/pack
 ```
+
+`output.folder` is deleted and rewritten on every pack write, so the output paths are validated at compile
+time: both must resolve strictly inside the data folder (not the data folder itself) and must not be or lie in
+`config.yml`, `assets`, `cache` or a definition folder (`images`, `texts`, `layouts`, `huds`, `popups`); the
+zip must not lie inside the folder. Errors read `config.yml > output.folder: …`. The pack writer also puts a
+`.surf-hud-pack` marker into the folder and refuses to delete an existing non-empty folder without it.
 
 ### images/
 
@@ -260,7 +266,8 @@ stable order (huds, then popups, each sorted by id, placements in file order). T
 
 ### Fonts
 
-One font per (slot, element y): `<ns>:hud/s<slot>_y<y>`. It contains the providers of every glyph set used at
+One font per (slot, element y): `<ns>:hud/s<slot>_<y>`, with a negative y written as `m<-y>` (for example
+`hud/s3_m4`). Text elements get their own font per text id, `<ns>:hud/s<slot>_<y>_<textId>`. It contains the providers of every glyph set used at
 that y in that slot (with ascent from the slot encoding; pixel sets add `row * size` per row) plus the space
 provider (±1 … ±512). Characters are allocated per glyph set in the private use area and only need to be
 unique within our fonts, so they cannot clash with fonts of the main pack.
@@ -324,8 +331,9 @@ With `false`, the fallback head is drawn immediately and replaced when the skin 
 
 ## Transport
 
-One bossbar per player in `bossbar-color`, progress 0. It is shown while anything is visible and hidden
-otherwise. Its name is the concatenation of all placed-layout components in slot order. Each placed layout keeps
+One bossbar per player in `bossbar-color`, progress 0. It is shown on the player's first HUD update and stays
+shown until quit or shutdown, with an empty name while nothing is visible (also while the player's HUD is
+disabled), so it keeps the top row the shader expects. Its name is the concatenation of all placed-layout components in slot order. Each placed layout keeps
 its last evaluated inputs and component; the bossbar name is sent only when the concatenation changed. On
 rejoin the state is rebuilt and the bossbar sent again.
 
@@ -389,7 +397,7 @@ player gets the `default: true` HUDs. `enabled = false` hides everything without
 
 ## Commands (surf-hud-paper)
 
-Permission `surf.hud.command.<sub>`:
+Permission `surf.hud.command.<sub>` (`/hud` itself needs none):
 
 - `/hud reload`: configs, compile, pack, swap; prints errors or the pack SHA-1
 - `/hud generate`: regenerate the pack from the active model
@@ -410,8 +418,8 @@ Permission `surf.hud.command.<sub>`:
 Registers `money` and `rank` placeholders with simulated values, ships the prototype's demo widgets (title,
 status, timer, money, health, player) as YAML plus its textures, and runs the vote loop (30 s voting with live
 counts, 5 s result, 5 s hidden) as the `vote` popup with two Mojang heads. On first start it copies its YAML and
-textures into `plugins/surf-hud/` where missing and calls `SurfHud.reload()`. `surf-hud-paper` itself bundles
-only a minimal `main` HUD and the fallback head.
+textures into `plugins/surf-hud-paper/` where missing and calls `SurfHud.reload()`. `surf-hud-paper` itself bundles
+only a minimal `main` HUD; the fallback head is generated when `assets/heads/fallback.png` is missing.
 
 ## Testing
 
