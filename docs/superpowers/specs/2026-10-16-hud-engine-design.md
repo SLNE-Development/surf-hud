@@ -58,7 +58,7 @@ surf-hud-paper-example  demo plugin
 ```
 
 The old API (`Hud`, `HudElement`, `HudBuilder`, `HudTheme`, `HudGlyph`), core's `HudImpl`, `layout/` package and
-`ExampleConfig` are removed. The prototype and the build-logic pack generator stay unchanged as reference.
+`ExampleConfig` are removed. The prototypes and the build-logic pack generator were removed after the engine landed; their findings are in docs/hud-technique.md.
 
 ## Data flow
 

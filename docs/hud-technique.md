@@ -7,12 +7,20 @@ but the shader is derived from the vanilla source of the target version instead 
 
 ## How it works
 
-1. **Slot encoded in the font ascent.** Every HUD element gets a slot number and its own font
-   `surf:hud/<element>`. In that font every glyph has an ascent of
-   `7 - (2^20 + slot * 1024 + 512 + layerY)`. Vanilla draws a glyph's top at `lineY + 7 - ascent`, so HUD
-   glyphs land far below the screen at a y that encodes slot and layer offset. Text colors and shadows stay
-   untouched.
-2. **One hook in vanilla `text.vsh`.** The generator reads `core/text.vsh` from the target version's client
+1. **Slot encoded in the font ascent.** The engine assigns one shader slot per placed layout: a HUD
+   placement, or a popup placement per stack index. There is one font per (slot, element y), named
+   `<ns>:hud/s{slot}_{y}` (`m` replaces the minus sign for negative y). Each ascii text set gets its own font
+   with a `_<textId>` suffix so characters cannot clash. Every glyph has an ascent of
+   `7 - (BASE + slot * STRIDE + BIAS + localY)`, where `localY` is the element y (pixel rows use
+   `y + row * size`). Constants: `BASE = 2^20`, `STRIDE = 1024`, `BIAS = 512`,
+   `MAX_SLOTS = (2^24 - 2^20) / 1024 = 15360`. The HUD bossbar line is at `y = 3 + 19 * row` with row 0.
+   Vanilla draws a glyph's top at `lineY + 7 - ascent`, so HUD glyphs land far below the screen at a y that
+   encodes slot and local y. Text colors and shadows stay untouched.
+2. **One hook in vanilla `text.vsh`.** The pack is generated at runtime by surf-hud-core, on enable and on
+   `/hud reload`. `VanillaAssetFetcher` downloads and caches the needed client-jar files, `TextShaderPatcher`
+   patches `text.vsh`, `PackGenerator` builds the pack with creative, and `PackWriter` writes a reproducible
+   zip plus folder and a SHA-1. The plugin sends each player one bossbar whose name is the concatenated
+   zero-width layout components. The patcher reads `core/text.vsh` from the target version's client
    jar, adds `#include <surf:hud.glsl>` and wraps the projected position in `surf_hud_transform(Position)`.
    Nothing else changes. If either anchor is missing, generation must fail with a message instead of
    shipping a broken pack.
@@ -72,8 +80,8 @@ Practical notes:
 ## Known limits
 
 - Vanilla still reserves the bossbar row (19 px) for the HUD line, so other bossbars appear one row lower.
-- Element layer offsets and anchors are baked into the pack. Moving an element means regenerating the pack;
-  changing content does not.
+- Moving an element or changing images or fonts changes the generated pack: run `/hud reload`, redeploy the
+  merged pack, and clients must download it again. Text, placeholder and condition changes do not.
 - Text uses only the ASCII glyphs of `ascii.png`. Other characters need more glyph sets.
 - Another pack that also replaces `core/text.vsh` (such as BetterHud) conflicts with this one.
 - F3 overlaps top-left and top-right elements.
