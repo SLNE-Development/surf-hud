@@ -69,6 +69,30 @@ class HudElementBuilder(private val meta: HudMetadata, element: String) {
         moveTo(start + pixels)
     }
 
+    /**
+     * Draws an image one tinted pixel glyph per pixel, e.g. a player head. [argb] is indexed `[row][column]`;
+     * fully transparent pixels are skipped. The cursor ends at the image's right edge.
+     */
+    fun image(set: String, argb: Array<IntArray>) = apply {
+        val pixels = meta.pixels(set)
+        require(argb.size <= pixels.rows.size) { "Image has ${argb.size} rows, pixel set '$set' only ${pixels.rows.size}" }
+        val left = cursor
+        val width = argb.maxOf { it.size }
+        argb.forEachIndexed { row, line ->
+            moveTo(left)
+            for (color in line) {
+                if ((color ushr 24) == 0) {
+                    gap(pixels.size)
+                } else {
+                    glyphs(pixels.rows[row], "#%06X".format(color and 0xFFFFFF), false, pixels.advance)
+                    // Pixels must touch, so take back the 1 px gap vanilla adds after every bitmap glyph.
+                    moveTo(cursor - 1)
+                }
+            }
+        }
+        moveTo(left + width * pixels.size)
+    }
+
     fun gap(pixels: Int) = moveTo(cursor + pixels)
 
     fun moveTo(target: Int) = apply {

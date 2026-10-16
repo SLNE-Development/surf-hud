@@ -65,5 +65,7 @@ tasks.register<JavaExec>("runHudDemo") {
         minecraftDev.rconPort.get().toString(),
         minecraftDev.rconPassword.get(),
         providers.gradleProperty("hud.players").getOrElse("Dev,Dev2"),
+        // Real Mojang accounts whose skins become the two vote heads.
+        providers.gradleProperty("hud.voteNames").getOrElse("Notch,jeb_"),
     )
 }

@@ -84,12 +84,18 @@ private fun composeHud(meta: HudMetadata, player: PlayerState, t: Double): List<
  * appended to command storage and the bossbar name is an `nbt` component that joins those parts. A real
  * plugin sends the finished component in one bossbar packet instead.
  *
- * Usage: HudDemo <hud-metadata.json> <rcon port> <rcon password> <player,player,…> [seconds]
+ * A looping vote between two real player heads ([VoteHud]) runs in the middle of the screen. Its heads are
+ * written to a shared storage only when the vote phase changes; everything else is resent every update.
+ *
+ * Usage: HudDemo <hud-metadata.json> <rcon port> <rcon password> <player,player,…> <candidate,candidate> [seconds]
  */
 fun main(args: Array<String>) {
     val meta = HudMetadata.read(Path.of(args[0]))
     val players = args[3].split(',').filter { it.isNotBlank() }.mapIndexed { index, name -> PlayerState(name, index) }
-    val runForMillis = args.getOrNull(4)?.toLong()?.times(1000) ?: Long.MAX_VALUE
+    val candidates = args[4].split(',').map(String::trim)
+    require(candidates.size == 2) { "Expected two vote candidates, got '${args[4]}'" }
+    val vote = VoteHud(meta, PlayerHeads.fetch(candidates[0]), PlayerHeads.fetch(candidates[1]))
+    val runForMillis = args.getOrNull(5)?.toLong()?.times(1000) ?: Long.MAX_VALUE
     val start = System.currentTimeMillis()
 
     Rcon("localhost", args[1].toInt(), args[2]).use { rcon ->
@@ -113,17 +119,24 @@ fun main(args: Array<String>) {
                 return
             }
             val t = (System.currentTimeMillis() - start) / 1000.0
+            if (vote.update(t)) {
+                rcon.command("data modify storage $VOTE_STORAGE parts set value []")
+                val bytes = vote.staticParts().sumOf { appendChunked(rcon, VOTE_STORAGE, it) }
+                println("Vote ${vote.phase}: static heads $bytes bytes")
+            }
+            val voteParts = vote.dynamicParts()
             for (player in players) {
                 val storage = bossbarId(player)
                 rcon.command("data modify storage $storage parts set value []")
-                for (element in composeHud(meta, player, t)) {
-                    val snbt = gson.toJson(element)
-                    val reply = rcon.command("data modify storage $storage parts append value $snbt")
-                    if (firstRound) println("${player.name}: element ${snbt.toByteArray().size} bytes -> $reply")
+                for (element in composeHud(meta, player, t) + voteParts) {
+                    val bytes = appendChunked(rcon, storage, element)
+                    if (firstRound) println("${player.name}: element $bytes bytes")
                 }
-                val name = """{"nbt":"parts[]","storage":"$storage","interpret":true,"separator":""}"""
+                val name = """{"text":"","extra":[""" +
+                    """{"nbt":"parts[]","storage":"$storage","interpret":true,"separator":""},""" +
+                    """{"nbt":"parts[]","storage":"$VOTE_STORAGE","interpret":true,"separator":""}]}"""
                 val reply = rcon.command("bossbar set ${bossbarId(player)} name $name")
-                if (firstRound) println("${player.name}: bossbar -> $reply")
+                if (firstRound) println("${player.name}: bossbar -> ${reply.take(80)}")
             }
             firstRound = false
             Thread.sleep(250)
@@ -132,5 +145,37 @@ fun main(args: Array<String>) {
 }
 
 private const val OWNER_STORAGE = "surf:hud_demo"
+private const val VOTE_STORAGE = "surf:hud_vote"
+
+/**
+ * Appends an element to `storage parts`, split into several `{text:"",extra:[…]}` parts when the command would
+ * exceed the RCON limit. Concatenated parts keep the element's zero total advance. Returns the bytes sent.
+ */
+private fun appendChunked(rcon: Rcon, storage: String, element: JsonObject): Int {
+    val prefix = "data modify storage $storage parts append value "
+    val limit = Rcon.MAX_REQUEST - prefix.length
+    val whole = gson.toJson(element)
+    if (whole.toByteArray().size <= limit) {
+        rcon.command(prefix + whole)
+        return whole.toByteArray().size
+    }
+    var sent = 0
+    var chunk = com.google.gson.JsonArray()
+    fun flush() {
+        if (chunk.isEmpty) return
+        val part = gson.toJson(JsonObject().apply { addProperty("text", ""); add("extra", chunk) })
+        rcon.command(prefix + part)
+        sent += part.toByteArray().size
+        chunk = com.google.gson.JsonArray()
+    }
+    for (run in element.getAsJsonArray("extra")) {
+        val candidate = chunk.deepCopy().apply { add(run) }
+        val size = gson.toJson(JsonObject().apply { addProperty("text", ""); add("extra", candidate) }).toByteArray().size
+        if (size > limit) flush()
+        chunk.add(run)
+    }
+    flush()
+    return sent
+}
 
 private fun bossbarId(player: PlayerState) = "surf:hud_${player.name.lowercase(Locale.ROOT)}"

@@ -102,6 +102,14 @@ STRIPS = {
     "panel": [(T, BORDER, T)] + [(BORDER, PANEL, BORDER)] * 11 + [(T, BORDER, T)],
     # 7 px tall bar track
     "bar_bg": [(T, BAR_EDGE, T)] + [(BAR_EDGE, BAR_TRACK, BAR_EDGE)] * 5 + [(T, BAR_EDGE, T)],
+    # 5 px tall light-gray gradient, tinted per use through the text color (vote timer bar)
+    "bar_tint": [
+        ((255, 255, 255, 255),) * 3,
+        ((235, 235, 235, 255),) * 3,
+        ((215, 215, 215, 255),) * 3,
+        ((190, 190, 190, 255),) * 3,
+        ((165, 165, 165, 255),) * 3,
+    ],
     # 5 px tall fill with a vertical gradient, drawn inside the track
     "bar_fill": [
         ((140, 255, 160, 255),) * 3,

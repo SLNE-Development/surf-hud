@@ -11,6 +11,9 @@ data class HudGlyph(val char: String, val width: Int, val advance: Int)
 /** A strip glyph set: edge glyphs and power-of-two middle pieces that compose any width. */
 data class HudStrip(val left: HudGlyph, val right: HudGlyph, val middle: List<HudGlyph>)
 
+/** A pixel glyph set: one [size] px square glyph per image row, each row drawn [size] px lower than the last. */
+data class HudPixelSet(val size: Int, val advance: Int, val rows: List<String>)
+
 /** The `hud-metadata.json` written by GenerateHudPack: fonts, glyph characters and advances of the pack. */
 class HudMetadata(private val json: JsonObject) {
     val bossbarColor: String = json.getAsJsonObject("bossbar")["color"].asString
@@ -40,6 +43,11 @@ class HudMetadata(private val json: JsonObject) {
             glyph(strip.getAsJsonObject("right")),
             strip.getAsJsonArray("middle").map { glyph(it.asJsonObject) }.sortedByDescending { it.width },
         )
+    }
+
+    fun pixels(set: String): HudPixelSet {
+        val pixels = glyphSets.getAsJsonObject(set) ?: error("Unknown pixel set '$set'")
+        return HudPixelSet(pixels["size"].asInt, pixels["advance"].asInt, pixels.getAsJsonArray("rows").map { it.asString })
     }
 
     private fun glyph(json: JsonObject) = HudGlyph(json["char"].asString, json["width"].asInt, json["advance"].asInt)
