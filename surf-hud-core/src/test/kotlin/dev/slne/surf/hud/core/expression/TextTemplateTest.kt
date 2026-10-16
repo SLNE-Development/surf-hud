@@ -28,7 +28,12 @@ class TextTemplateTest {
         assertFailsWith<ExpressionException> { TextTemplate.parse("{1 + 2") }
     }
     @Test fun `invalid format is an error`() {
-        assertFailsWith<ExpressionException> { TextTemplate.parse("{1 | 0.0.0'}") }
+        val error = assertFailsWith<ExpressionException> { TextTemplate.parse("{1 | 0.0.0}") }
+        assertContains(error.message!!, "invalid number format")
+    }
+    @Test fun `format with balanced quote parses`() {
+        val expression = TextTemplate.parse("{1 | 0.0'%'}").segments.single() as Segment.Expression
+        assertEquals("0.0'%'", expression.format)
     }
     @Test fun `collects placeholders from expressions too`() {
         assertEquals(
