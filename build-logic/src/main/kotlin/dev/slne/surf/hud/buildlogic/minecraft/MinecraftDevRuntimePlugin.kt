@@ -10,8 +10,9 @@ import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
 
 /**
- * Adds a vanilla Minecraft dev environment to a project: `runDevClient` (offline client with the configured
- * resource packs enabled), `runDevServer` (offline-mode dedicated server with RCON) and `devRcon`.
+ * Adds a vanilla Minecraft dev client to a project: `runDevClient` (offline client with the configured resource
+ * packs enabled, joining the dev server) and `devRcon` (console commands to the dev server). The server itself
+ * comes from a server plugin such as `surf-hud.paper-dev`, which reads the server values of [MinecraftDevExtension].
  */
 class MinecraftDevRuntimePlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -40,7 +41,6 @@ class MinecraftDevRuntimePlugin : Plugin<Project> {
             languageVersion.set(JavaLanguageVersion.of(25))
         }
         val clientGameDir = extension.runDirectory.zip(extension.username) { run, name -> run.dir("client/$name") }
-        val serverDir = extension.runDirectory.map { it.dir("server") }
 
         val prepareClient = project.tasks.register<PrepareMinecraftClient>("prepareDevClient") {
             group = GROUP
@@ -48,22 +48,16 @@ class MinecraftDevRuntimePlugin : Plugin<Project> {
             version.set(extension.version)
             cacheDirectory.set(extension.cacheDirectory)
         }
-        val prepareServer = project.tasks.register<PrepareMinecraftServer>("prepareDevServer") {
-            group = GROUP
-            description = "Downloads the Minecraft dedicated server"
-            version.set(extension.version)
-            cacheDirectory.set(extension.cacheDirectory)
-        }
 
         val syncPacks = project.tasks.register<Sync>("syncDevResourcePacks") {
             group = GROUP
-            description = "Copies the configured resource packs into the dev client's resourcepacks folder"
+            description = "Copies the configured (not linked) resource packs into the dev client's resourcepacks folder"
             into(clientGameDir.map { it.dir("resourcepacks") })
             // getting() keeps the producing task of generated packs as a dependency.
             extension.resourcePacks.keySet().get().forEach { name ->
                 from(extension.resourcePacks.getting(name)) { into(name) }
             }
-            // Packs dropped into the folder by hand are kept; only the configured packs are replaced.
+            // Packs dropped into the folder by hand and linked packs are kept; only the copied packs are replaced.
             preserve {
                 include("**")
                 extension.resourcePacks.get().keys.forEach { exclude("$it/**") }
@@ -84,44 +78,29 @@ class MinecraftDevRuntimePlugin : Plugin<Project> {
                 extension.joinDevServer.zip(extension.serverPort) { join, port -> if (join) "localhost:$port" else "" }
                     .filter { it.isNotEmpty() }
             )
-            // Dev clients start muted; minecraftDev.clientOptions can override this.
-            options.put("soundCategory_master", "0.0")
+            linkedResourcePacks.set(extension.linkedResourcePacks)
+            // Dev defaults: muted, no pause or onboarding screens when the window loses focus or first starts.
+            // minecraftDev.clientOptions can override each of them.
+            options.putAll(
+                mapOf(
+                    "soundCategory_master" to "0.0",
+                    "pauseOnLostFocus" to "false",
+                    "onboardAccessibility" to "false",
+                    "skipMultiplayerWarning" to "true",
+                    "joinedFirstServer" to "true",
+                    "tutorialStep" to "none",
+                )
+            )
             options.putAll(extension.clientOptions)
             // -Pminecraft.enableResourcePacks=false starts with only the vanilla pack, e.g. for an FPS baseline.
             val enablePacks = providers.gradleProperty("minecraft.enableResourcePacks").map(String::toBoolean).orElse(true)
+            val packNames = extension.resourcePacks.keySet().zip(extension.linkedResourcePacks.keySet()) { copied, linked ->
+                copied + linked
+            }
             options.put(
                 "resourcePacks",
-                extension.resourcePacks.zip(enablePacks) { packs, enabled ->
-                    DevFiles.resourcePackOption(if (enabled) packs.keys else emptySet())
-                }
+                packNames.zip(enablePacks) { names, enabled -> DevFiles.resourcePackOption(if (enabled) names else emptySet()) }
             )
-            this.javaLauncher.set(javaLauncher)
-        }
-
-        project.tasks.register<RunMinecraftServer>("runDevServer") {
-            group = GROUP
-            description = "Starts an offline-mode vanilla dedicated server with RCON for the dev client"
-            dependsOn(prepareServer)
-            version.set(extension.version)
-            cacheDirectory.set(extension.cacheDirectory)
-            serverDirectory.set(serverDir)
-            properties.putAll(
-                project.provider {
-                    mapOf(
-                        "online-mode" to "false",
-                        "enforce-secure-profile" to "false",
-                        "server-port" to extension.serverPort.get().toString(),
-                        "enable-rcon" to "true",
-                        "rcon.port" to extension.rconPort.get().toString(),
-                        "rcon.password" to extension.rconPassword.get(),
-                        // devRcon and demo tools send many commands; do not echo them into every op's chat.
-                        "broadcast-rcon-to-ops" to "false",
-                    )
-                }
-            )
-            properties.putAll(extension.serverProperties)
-            operators.set(extension.operators)
-            acceptEula.set(extension.acceptEula)
             this.javaLauncher.set(javaLauncher)
         }
 
@@ -133,7 +112,7 @@ class MinecraftDevRuntimePlugin : Plugin<Project> {
         }
     }
 
-    private companion object {
+    internal companion object {
         const val GROUP = "minecraft dev"
     }
 }

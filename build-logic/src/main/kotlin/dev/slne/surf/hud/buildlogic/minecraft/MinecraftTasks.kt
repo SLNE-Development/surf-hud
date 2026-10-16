@@ -1,8 +1,8 @@
 package dev.slne.surf.hud.buildlogic.minecraft
 
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
@@ -36,13 +36,6 @@ abstract class PrepareMinecraftClient : MinecraftInstallationTask() {
     fun prepare() = installation().prepareClient(Downloader(logger), LauncherPlatform.current())
 }
 
-/** Downloads the dedicated server jar into the cache. */
-@UntrackedTask(because = "Checks the shared download cache itself and skips files that are present")
-abstract class PrepareMinecraftServer : MinecraftInstallationTask() {
-    @TaskAction
-    fun prepare() = installation().prepareServer(Downloader(logger))
-}
-
 /** Starts the vanilla client in offline mode with its own game directory, optionally joining the dev server. */
 @UntrackedTask(because = "Runs the game")
 abstract class RunMinecraftClient @Inject constructor(
@@ -68,6 +61,10 @@ abstract class RunMinecraftClient @Inject constructor(
     @get:Input
     abstract val options: MapProperty<String, String>
 
+    /** Pack directories linked into `resourcepacks/<name>` before launch; see [DevFiles.linkDirectory]. */
+    @get:Internal
+    abstract val linkedResourcePacks: MapProperty<String, Directory>
+
     @get:Nested
     abstract val javaLauncher: Property<JavaLauncher>
 
@@ -80,6 +77,16 @@ abstract class RunMinecraftClient @Inject constructor(
         val nativesDir = gameDir.resolve("natives")
         Files.createDirectories(nativesDir)
         DevFiles.mergeKeyValueFile(gameDir.resolve("options.txt"), ':', options.get())
+        linkedResourcePacks.get().forEach { (name, directory) ->
+            val target = directory.asFile.toPath()
+            DevFiles.linkDirectory(gameDir, gameDir.resolve("resourcepacks").resolve(name), target)
+            if (!Files.isRegularFile(target.resolve("pack.mcmeta"))) {
+                logger.warn(
+                    "Resource pack '$name' is still empty ($target). Start the server that generates it first, " +
+                        "otherwise the client drops the pack; restart the client once the pack exists."
+                )
+            }
+        }
 
         val features = buildSet {
             add("has_custom_resolution")
@@ -119,52 +126,6 @@ abstract class RunMinecraftClient @Inject constructor(
             jvmArgs(jvmArguments)
             args(gameArguments)
             workingDir = gameDir.toFile()
-        }
-    }
-}
-
-/** Writes the dev server's config and runs the dedicated server with its console attached to this build. */
-@UntrackedTask(because = "Runs the game")
-abstract class RunMinecraftServer @Inject constructor(
-    private val exec: ExecOperations,
-) : MinecraftInstallationTask() {
-    @get:Internal
-    abstract val serverDirectory: DirectoryProperty
-
-    @get:Input
-    abstract val properties: MapProperty<String, String>
-
-    @get:Input
-    abstract val operators: ListProperty<String>
-
-    @get:Input
-    abstract val acceptEula: Property<Boolean>
-
-    @get:Nested
-    abstract val javaLauncher: Property<JavaLauncher>
-
-    @TaskAction
-    fun run() {
-        check(acceptEula.get()) {
-            "The dev server needs the Minecraft EULA (https://aka.ms/MinecraftEULA) accepted: set minecraftDev.acceptEula = true"
-        }
-        val serverDir = serverDirectory.get().asFile.toPath()
-        Files.createDirectories(serverDir)
-        Files.writeString(serverDir.resolve("eula.txt"), "eula=true\n")
-        DevFiles.mergeKeyValueFile(serverDir.resolve("server.properties"), '=', properties.get())
-        DevFiles.writeOps(serverDir.resolve("ops.json"), operators.get())
-
-        val serverJar = installation().serverJar
-        logger.lifecycle("Starting Minecraft ${version.get()} server in $serverDir")
-        exec.javaexec {
-            executable = javaLauncher.get().executablePath.asFile.absolutePath
-            classpath(serverJar.toFile())
-            // The server jar is a bundler that unpacks the real server and its libraries into the working directory.
-            mainClass.set("net.minecraft.bundler.Main")
-            jvmArgs("-Xmx2G")
-            args("nogui")
-            workingDir = serverDir.toFile()
-            standardInput = System.`in`
         }
     }
 }

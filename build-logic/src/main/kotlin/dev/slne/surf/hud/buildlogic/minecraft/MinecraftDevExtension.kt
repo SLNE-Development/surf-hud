@@ -7,7 +7,10 @@ import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 
-/** Configures the vanilla dev client and server started by `runDevClient` and `runDevServer`. */
+/**
+ * Configures the vanilla dev client started by `runDevClient` and the dev server it joins. The server values
+ * (port, RCON, operators, properties, EULA) are applied by a server plugin such as `surf-hud.paper-dev`.
+ */
 abstract class MinecraftDevExtension {
     /** The Minecraft version to run, as listed in Mojang's version manifest (for example `26.3`). */
     abstract val version: Property<String>
@@ -15,7 +18,7 @@ abstract class MinecraftDevExtension {
     /** Launcher-style cache for jars, libraries and assets, shared across projects. */
     abstract val cacheDirectory: DirectoryProperty
 
-    /** Holds `client/<username>/` (one game directory per dev user) and `server/`. */
+    /** Holds `client/<username>/` (one game directory per dev user) and the dev server's directory. */
     abstract val runDirectory: DirectoryProperty
 
     /** Offline username of the dev client; `-Pminecraft.username=Dev2` starts a second client. */
@@ -30,7 +33,13 @@ abstract class MinecraftDevExtension {
     /** Resource pack directories copied into the client's `resourcepacks/` and enabled, keyed by pack name. */
     abstract val resourcePacks: MapProperty<String, Directory>
 
-    /** Extra `options.txt` entries written before every client launch. */
+    /**
+     * Resource pack directories linked (not copied) into the client's `resourcepacks/` and enabled, keyed by
+     * pack name. The client reads the directory itself, so F3+T loads whatever is in it at that moment.
+     */
+    abstract val linkedResourcePacks: MapProperty<String, Directory>
+
+    /** Extra `options.txt` entries written before every client launch; they override the dev defaults. */
     abstract val clientOptions: MapProperty<String, String>
 
     abstract val serverPort: Property<Int>
@@ -40,7 +49,7 @@ abstract class MinecraftDevExtension {
     /** Usernames that get operator level 4 on the dev server. */
     abstract val operators: ListProperty<String>
 
-    /** Extra `server.properties` entries written before every server launch. */
+    /** Extra `server.properties` entries written before every server launch; they override the dev defaults. */
     abstract val serverProperties: MapProperty<String, String>
 
     /**
@@ -56,5 +65,10 @@ abstract class MinecraftDevExtension {
     /** Adds a generated pack; pass a task output so the client launch builds the pack first. */
     fun resourcePack(name: String, directory: Provider<Directory>) {
         resourcePacks.put(name, directory)
+    }
+
+    /** Links [directory] into the client as pack [name]; the directory may be filled later, e.g. by a server. */
+    fun linkResourcePack(name: String, directory: Provider<Directory>) {
+        linkedResourcePacks.put(name, directory)
     }
 }
