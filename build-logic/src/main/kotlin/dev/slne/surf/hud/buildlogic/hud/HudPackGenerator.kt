@@ -55,7 +55,8 @@ class HudPackGenerator(
         val glyphSets = layout.glyphSets.entries.mapIndexed { index, (name, spec) ->
             val firstChar = 0xE000 + index * 0x100
             name to when (spec) {
-                GlyphSetSpec.Ascii -> asciiGlyphs()
+                is GlyphSetSpec.Ascii -> asciiGlyphs(spec.height)
+                is GlyphSetSpec.Pixel -> pixelGlyphs(packDir, name, spec, firstChar)
                 is GlyphSetSpec.Images -> imageGlyphs(packDir, name, spec, firstChar)
                 is GlyphSetSpec.Strip -> stripGlyphs(packDir, name, spec, firstChar)
             }
@@ -67,7 +68,7 @@ class HudPackGenerator(
         val spaceProvider = mapOf("type" to "space", "advances" to spaces.entries.associate { (amount, c) -> c to amount.toInt() })
         val elements = layout.elements.entries.mapIndexed { slot, (name, element) ->
             val providers = element.layers.flatMap { (set, layerY) ->
-                glyphSets.getValue(set).providers(HudEncoding.ascent(slot, layerY))
+                glyphSets.getValue(set).providers { extraY -> HudEncoding.ascent(slot, layerY + extraY) }
             } + spaceProvider
             write(packDir.resolve("assets/$ns/font/hud/$name.json"), mapOf("providers" to providers))
             name to mapOf(
@@ -91,11 +92,14 @@ class HudPackGenerator(
         )
     }
 
-    /** A glyph set's font providers for a given ascent, plus what the composer needs to know about it. */
-    private class GlyphSet(val metadata: Map<String, Any?>, val providers: (ascent: Int) -> List<Map<String, Any?>>)
+    /**
+     * A glyph set's font providers, plus what the composer needs to know about it. [providers] receives the
+     * ascent for a y offset below the layer's top (0 for most sets; pixel sets put each row lower).
+     */
+    private class GlyphSet(val metadata: Map<String, Any?>, val providers: (ascentAt: (Int) -> Int) -> List<Map<String, Any?>>)
 
     @Suppress("UNCHECKED_CAST")
-    private fun asciiGlyphs(): GlyphSet {
+    private fun asciiGlyphs(requestedHeight: Int?): GlyphSet {
         val vanillaFont = JsonSlurper().parse(vanillaAsset("assets/minecraft/font/include/default.json")) as Map<String, Any?>
         val provider = (vanillaFont["providers"] as List<Map<String, Any?>>)
             .first { it["file"] == "minecraft:font/ascii.png" }
@@ -103,7 +107,7 @@ class HudPackGenerator(
         val image = readImage(vanillaAsset("assets/minecraft/textures/font/ascii.png"))
         val cellWidth = image.width / rows.first().length
         val cellHeight = image.height / rows.size
-        val height = (provider["height"] as Number?)?.toInt() ?: 8
+        val height = requestedHeight ?: (provider["height"] as Number?)?.toInt() ?: 8
         val scale = height.toDouble() / cellHeight
         val advances = sortedMapOf<String, Int>()
         rows.forEachIndexed { row, chars ->
@@ -114,13 +118,15 @@ class HudPackGenerator(
                 }
             }
         }
-        advances[" "] = 4
-        return GlyphSet(mapOf("type" to "ascii", "height" to height, "advances" to advances)) { ascent ->
+        // Vanilla's space is 4 px at height 8; scale it with the font.
+        val space = (4 * scale + 0.5).toInt()
+        advances[" "] = space
+        return GlyphSet(mapOf("type" to "ascii", "height" to height, "advances" to advances)) { ascentAt ->
             // The space provider must come first: ascii.png also has a (blank) cell for ' ', and the first
             // provider that knows a character wins.
             listOf(
-                mapOf("type" to "space", "advances" to mapOf(" " to 4)),
-                mapOf("type" to "bitmap", "file" to "minecraft:font/ascii.png", "height" to height, "ascent" to ascent, "chars" to rows),
+                mapOf("type" to "space", "advances" to mapOf(" " to space)),
+                mapOf("type" to "bitmap", "file" to "minecraft:font/ascii.png", "height" to height, "ascent" to ascentAt(0), "chars" to rows),
             )
         }
     }
@@ -134,7 +140,7 @@ class HudPackGenerator(
         }
         return GlyphSet(
             mapOf("type" to "images", "images" to glyphs.associate { it.name to it.metadata() }),
-        ) { ascent -> glyphs.map { it.provider(ascent) } }
+        ) { ascentAt -> glyphs.map { it.provider(ascentAt(0)) } }
     }
 
     private fun stripGlyphs(packDir: Path, set: String, spec: GlyphSetSpec.Strip, firstChar: Int): GlyphSet {
@@ -158,7 +164,23 @@ class HudPackGenerator(
             "right" to right.metadata(),
             "middle" to middle.map { it.metadata() },
         )
-        return GlyphSet(metadata) { ascent -> (listOf(left, right) + middle).map { it.provider(ascent) } }
+        return GlyphSet(metadata) { ascentAt -> (listOf(left, right) + middle).map { it.provider(ascentAt(0)) } }
+    }
+
+    /**
+     * A white [GlyphSetSpec.Pixel.size] px square, once per row: row r sits r * size px lower. Tinted through the
+     * component color, these draw arbitrary images such as player heads one pixel at a time.
+     */
+    private fun pixelGlyphs(packDir: Path, set: String, spec: GlyphSetSpec.Pixel, firstChar: Int): GlyphSet {
+        val image = BufferedImage(spec.size, spec.size, BufferedImage.TYPE_INT_ARGB)
+        for (x in 0 until spec.size) for (y in 0 until spec.size) image.setRGB(x, y, -1)
+        val texture = "font/hud/$set/pixel.png"
+        writeImage(packDir.resolve("assets/$ns/textures/$texture"), image)
+        val rows = (0 until spec.rows).map { row ->
+            Glyph("row_$row", (firstChar + row).toChar(), "$ns:$texture", spec.size, spec.size, spec.size + 1)
+        }
+        val metadata = mapOf("type" to "pixel", "size" to spec.size, "advance" to spec.size + 1, "rows" to rows.map { it.char.toString() })
+        return GlyphSet(metadata) { ascentAt -> rows.mapIndexed { row, glyph -> glyph.provider(ascentAt(row * spec.size)) } }
     }
 
     private data class Glyph(val name: String, val char: Char, val file: String, val width: Int, val height: Int, val advance: Int) {

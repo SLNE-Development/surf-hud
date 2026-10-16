@@ -25,10 +25,11 @@ data class HudLayout(
             val bossbar = json["bossbar"] as Map<String, Any?>
             val glyphSets = (json["glyphSets"] as Map<String, Map<String, Any?>>).mapValues { (name, spec) ->
                 when (val type = spec["type"]) {
-                    "ascii" -> GlyphSetSpec.Ascii
+                    "ascii" -> GlyphSetSpec.Ascii((spec["height"] as Number?)?.toInt())
+                    "pixel" -> GlyphSetSpec.Pixel((spec["size"] as Number).toInt(), (spec["rows"] as Number?)?.toInt() ?: 8)
                     "images" -> GlyphSetSpec.Images(spec["images"] as Map<String, String>)
                     "strip" -> GlyphSetSpec.Strip(spec["texture"] as String)
-                    else -> error("Glyph set '$name' has unknown type '$type' (expected ascii, images or strip)")
+                    else -> error("Glyph set '$name' has unknown type '$type' (expected ascii, pixel, images or strip)")
                 }
             }
             val elements = (json["elements"] as Map<String, Map<String, Any?>>).mapValues { (name, spec) ->
@@ -51,8 +52,11 @@ data class HudLayout(
 }
 
 sealed interface GlyphSetSpec {
-    /** Vanilla `minecraft:font/ascii.png` with the vanilla character grid. */
-    data object Ascii : GlyphSetSpec
+    /** Vanilla `minecraft:font/ascii.png` with the vanilla character grid, optionally drawn [height] px tall (default 8). */
+    data class Ascii(val height: Int?) : GlyphSetSpec
+
+    /** A [size] px square pixel for each of [rows] rows, tinted per glyph to draw images such as player heads. */
+    data class Pixel(val size: Int, val rows: Int) : GlyphSetSpec
 
     /** One glyph per image, keyed by icon name; paths are relative to the source directory. */
     data class Images(val images: Map<String, String>) : GlyphSetSpec
