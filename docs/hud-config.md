@@ -86,7 +86,13 @@ title: { type: ascii, height: 16 }
 vs:    { type: ascii, height: 24 }
 ```
 
-An element that does not set `font` uses the text id `default` (height 8).
+`default` is not built in. On first start, when the `huds/` folder does not exist yet, surf-hud installs
+`texts/default.yml` with `default: { type: ascii }` (height 8). It also installs a minimal `layouts/main.yml`
+(`welcome`) and `huds/main.yml` (`main`, `default: true`, anchored at `center_left`).
+
+A `text` element that does not set `font` uses the text id `default`. Keep it defined. If you delete it, the
+reload fails with the compile error `unknown text 'default'`. The demo files rely on it and do not define it
+themselves.
 Only ASCII characters are supported. Other characters are shown as `?`.
 
 ## layouts/
@@ -131,7 +137,7 @@ Fields by type:
 Text supports color, bold and gradients. Italic, underline, strikethrough and obfuscated are ignored (one
 warning per element). Bold adds 1 px per character.
 
-Example (`layouts/demo.yml`):
+Excerpt from `layouts/demo.yml`:
 
 ```yaml
 demo_money:
@@ -167,7 +173,7 @@ Anchors: `top_left`, `top_center`, `top_right`, `center_left`, `center`, `center
 `bottom_center`, `bottom_right`. `x` and `y` move the layout away from the anchor point. Use negative values
 to move left or up. For example, `x: -4` keeps a right-aligned layout 4 px from the right screen edge.
 
-Example (`huds/demo.yml`):
+Excerpt from `huds/demo.yml`:
 
 ```yaml
 demo:
@@ -196,7 +202,7 @@ A popup is a temporary set of placed layouts. It is opened from code or with `/h
 
 Popup variables (passed when the popup is opened or updated) can be used as placeholders in its layouts.
 
-Example (`popups/vote.yml`):
+Excerpt from `popups/vote.yml`:
 
 ```yaml
 vote:
@@ -208,7 +214,8 @@ vote:
     - { layout: vote_bar, x: -65, y: 8 }
 ```
 
-A stacking example:
+A stacking example. It is illustrative: the `kill_entry` layout is not shown or shipped.
+
 
 ```yaml
 kill_feed:
@@ -269,9 +276,10 @@ Built-in placeholders:
 | `gamemode` | game mode |
 | `sneaking`, `flying` | true or false |
 
-Caching: a registered placeholder can set an interval, and its value is kept per player for that long. Without
+Caching: a registered placeholder can set an interval (in Kotlin, `register(name, interval)` takes a
+`Duration`), and its value is kept per player for that long. Without
 one, it is evaluated at most once per HUD update. Bridge placeholders (`papi`, `mini`) are cached for 20 ticks
-by default. Change this with `placeholder-intervals` in `config.yml`.
+by default. Change this with `placeholder-intervals` in `config.yml`; those values are in ticks, not durations.
 
 Values are never read as MiniMessage tags, so a player name or PlaceholderAPI result cannot inject formatting.
 A placeholder that is unknown at runtime shows as `?` and is logged once. A placeholder that throws an error
