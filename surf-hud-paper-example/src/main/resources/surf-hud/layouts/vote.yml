@@ -14,7 +14,8 @@ vote_bar:
   elements:
     - { type: text, x: -4, align: right, text: "<aqua>[left_votes]</aqua>" }
     - { type: image, image: bar_bg, y: 1, width: 130 }
-    - { type: bar, image: bar_tint, y: 2, width: 130, value: "[time_left] / [time_total]", color: "#55FFFF" }
+    # The fill sits inside the track's 1 px border: one pixel in from each end.
+    - { type: bar, image: bar_tint, x: 1, y: 2, width: 128, value: "[time_left] / [time_total]", color: "#55FFFF" }
     - { type: text, x: 65, align: center, text: "{[left_votes] / max([left_votes] + [right_votes], 1) * 100 | 0}% : {[right_votes] / max([left_votes] + [right_votes], 1) * 100 | 0}%" }
     - { type: text, x: 134, text: "<light_purple>[right_votes]</light_purple>" }
 vote_timer:

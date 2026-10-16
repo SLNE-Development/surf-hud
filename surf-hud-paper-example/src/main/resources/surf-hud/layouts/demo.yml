@@ -24,7 +24,8 @@ demo_health:
   elements:
     - { type: image, image: heart }
     - { type: image, image: bar_bg, x: 10, y: 1, width: 60 }
-    - { type: bar, image: bar_fill, x: 10, y: 2, width: 60, value: "[health] / [max_health]" }
+    # The fill sits inside the track's 1 px border: one pixel in from each end.
+    - { type: bar, image: bar_fill, x: 11, y: 2, width: 58, value: "[health] / [max_health]" }
     - { type: text, x: 74, y: 1, text: "{[health] / [max_health] * 100 | 0}%" }
 demo_player:
   elements:

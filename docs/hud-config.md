@@ -8,7 +8,7 @@ your main pack yourself (see "Resource pack").
 
 ## Folder layout
 
-All paths are relative to the plugin's data folder (`plugins/surf-hud/`).
+All paths are relative to the plugin's data folder (`plugins/surf-hud-paper/`).
 
 ```
 config.yml
