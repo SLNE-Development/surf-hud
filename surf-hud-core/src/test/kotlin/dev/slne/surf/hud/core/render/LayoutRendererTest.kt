@@ -152,4 +152,27 @@ class LayoutRendererTest {
         assertTrue(text.isNotEmpty())
         text.forEach { assertTrue(it in known || ascii.advance(it) != null, "unknown glyph U+%04X".format(it.code)) }
     }
+
+    @Test fun `negative, missing and divide-by-zero widths draw nothing`() {
+        values["money"] = 1500
+        for (width in listOf("-5", "[nope]", "[money] / 0")) {
+            val files = mapOf(
+                "layouts/widths.yml" to """
+                    strip: { elements: [ { type: image, image: panel, width: "$width" } ] }
+                    bar: { elements: [ { type: bar, image: panel, width: "$width", value: "1" } ] }
+                """,
+                "huds/widths.yml" to """
+                    widths:
+                      layouts:
+                        - { layout: strip, anchor: top_left }
+                        - { layout: bar, anchor: top_left }
+                """,
+            )
+            for (id in listOf("strip", "bar")) {
+                val component = renderCustom(id, files)
+                assertEquals(Component.empty(), component, "$id with width $width")
+                assertEquals(0, advance(component), "$id with width $width")
+            }
+        }
+    }
 }
