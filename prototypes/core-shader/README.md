@@ -24,7 +24,9 @@ of the target version instead of maintained by hand.
 4. **Zero-width elements.** The bossbar centers its name, so every element must have a total advance of 0.
    The composer lays out glyphs from x = 0 and uses space glyphs (±1 … ±512, part of every element font) to
    move back under text for backgrounds, to align right or center, and to return to 0 at the end.
-5. **Glyph sets.** `ascii` reuses vanilla `minecraft:font/ascii.png`. `images` are icons (one glyph each).
+5. **Glyph sets.** `ascii` reuses vanilla `minecraft:font/ascii.png`, optionally at another `height`.
+   `pixel` is a white `size`×`size` square, one glyph per image row, each row `size` px lower. Tinted
+   through the component color, it draws any small image pixel by pixel, such as player heads. `images` are icons (one glyph each).
    `strip` textures are 3 px wide (left edge, middle, right edge) and are cut into edges plus power-of-two
    middle pieces, so a background or bar of any width needs at most about ten glyphs.
 6. **Transparent bossbar.** The pack blanks the `pink` bossbar sprites, so only the text remains. HUD bossbars
@@ -45,7 +47,8 @@ that version's jar. Breakage is limited to the two patch anchors, the bossbar li
 
 `generateHudPack` runs automatically. It writes the pack to `build/hud-pack/surf-hud-core-test` and the
 composer metadata (glyph characters, advances, fonts) to `build/hud-pack/hud-metadata.json`.
-`-Phud.players=Dev` limits the demo to one player. Starting a second demo makes the first one stop, because
+`-Phud.players=Dev` limits the demo to one player, and `-Phud.voteNames=Notch,jeb_` picks the two Mojang
+accounts whose heads appear in the vote. Starting a second demo makes the first one stop, because
 two demos writing the same storage make the HUD jump between their values.
 
 Vanilla RCON accepts at most 1460 bytes per request, which a full HUD line exceeds. The demo therefore
@@ -72,6 +75,31 @@ that joins them. A plugin sends the finished component in one bossbar packet ins
 | `money` | bottom right | Text on a background with an icon prefix |
 | `health` | bottom right, above money | Icon, progress bar (track + partial fill) and percentage |
 | `player` | bottom left | Text with an icon prefix |
+| `vote_*` | center | Vote: title, two 40x40 player heads, big VS, names, a draining timer bar with % and vote counts on both sides, countdown |
+| `vote_mini` | top left | The same vote with 16x16 heads and `left% : right%` |
+
+### Vote
+
+`VoteHud` loops: 30 s of voting with simulated votes (about 6 per second, with a bias that swings between
+the candidates), 5 s of result (winner's name in gold, the loser's heads dimmed, "<name> wins!"), then 5 s
+hidden. `PlayerHeads` resolves each name through `api.mojang.com` and `sessionserver.mojang.com`, downloads
+the skin and composites the 8x8 face with the hat layer. Like vanilla, it ignores an overlay that has no
+transparent pixel on legacy 64x32 skins; otherwise Notch's head is a black square. Without network access it
+draws a placeholder head.
+
+Head size is set per pixel glyph set in `hud-layout.json` (`pixel_big`: 5 GUI px per skin pixel = 40x40,
+`pixel_small`: 2 px = 16x16). The four heads are about 11 KB of components. The demo writes them to a
+shared storage only when the vote phase changes, and resends only the small dynamic parts every update.
+
+Title size, measured as stroke widths in the captures (one font pixel should be one uniform run):
+
+| Font | GUI scale 2 | GUI scale 3 |
+| --- | --- | --- |
+| 1.5x (height 12) | 3 px exactly | **4 or 5 px** (uneven) |
+| 2x (height 16) | 4 px exactly | 6 px |
+
+1.5x is uneven only at odd GUI scales, where 1.5 × scale is not a whole number of screen pixels. 2x is
+crisp at every scale. Rounds alternate between the two, and the title says which one is shown.
 
 ## Test results (26.3, Windows 11, RTX 5080, 2026-10-16)
 
@@ -88,6 +116,8 @@ that joins them. A plugin sends the finished component in one bossbar packet ins
 | Pause menu | The HUD is blurred behind the menu like other HUD elements. `07-pause-menu.jpg` |
 | Title screen | No bossbar, so no HUD |
 | World text (name tags, signs) and chat | Unaffected; the hook only touches GUI geometry. `08-world-text-unaffected.jpg` |
+| Vote heads from real skins | Pass for Notch (legacy skin, after the overlay fix) and jeb_ at both head sizes. `09`–`12` |
+| Vote lifecycle | Pass: voting → result → hidden → next round, with live countdown, drain bar and vote counts. `12-vote-result.jpg` |
 | FPS | 1280x720, vsync off, 8 samples: ≈ 1247 fps with HUD and live updates, ≈ 1276 without the pack, i.e. ≈ 0.02 ms per frame, within noise. |
 
 ## Known limits
