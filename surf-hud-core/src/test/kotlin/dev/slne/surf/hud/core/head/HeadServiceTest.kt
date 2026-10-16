@@ -21,6 +21,7 @@ class HeadServiceTest {
     @TempDir lateinit var cache: Path
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var now = 0L
+    private val httpCalls = java.util.concurrent.atomic.AtomicInteger()
 
     private fun skin(face: Int, hat: Int?, legacy: Boolean = false): ByteArray {
         val image = BufferedImage(64, if (legacy) 32 else 64, BufferedImage.TYPE_INT_ARGB)
@@ -37,7 +38,7 @@ class HeadServiceTest {
                 return if (player in skins) "https://skin/$player" else null
             }
         }
-        val http = HttpGet { url -> skins.getValue(url.substringAfterLast('/')) }
+        val http = HttpGet { url -> httpCalls.incrementAndGet(); skins.getValue(url.substringAfterLast('/')) }
         return HeadService(listOf(source), http, cache, 1.days, HudClock { now }, scope, HeadPixels.placeholder("fallback"))
     }
 
@@ -72,5 +73,22 @@ class HeadServiceTest {
         service(mapOf("Notch" to skin(0xFF112233.toInt(), null))).await("Notch", 5.seconds)
         now = 2.days.inWholeMilliseconds + System.currentTimeMillis()
         assertNull(service(emptyMap()).cached("Notch"))
+    }
+
+    @Test fun `request does not reload a cached head`() = runBlocking {
+        val service = service(mapOf("Notch" to skin(0xFF112233.toInt(), null)))
+        service.await("Notch", 5.seconds)
+        val version = service.version
+        service.request("Notch")
+        service.request("Notch")
+        Thread.sleep(200)
+        assertEquals(1, httpCalls.get())
+        assertEquals(version, service.version)
+    }
+
+    @Test fun `a malformed skin gives the fallback`() = runBlocking {
+        val tiny = ByteArrayOutputStream().also { ImageIO.write(BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB), "png", it) }.toByteArray()
+        val service = service(mapOf("Tiny" to tiny))
+        assertSame(service.fallback, service.await("Tiny", 5.seconds))
     }
 }

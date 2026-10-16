@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import javax.imageio.ImageIO
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
@@ -33,9 +34,10 @@ class HeadService(
     private val loading = ConcurrentHashMap<String, Deferred<HeadPixels?>>()
     private val failedAt = ConcurrentHashMap<String, Long>()
 
-    @Volatile
-    var version = 0L
-        private set
+    private val versionCounter = AtomicLong()
+
+    /** Increases with every loaded head. */
+    val version: Long get() = versionCounter.get()
 
     fun cached(player: String): HeadPixels? {
         val key = key(player) ?: return null
@@ -57,6 +59,7 @@ class HeadService(
 
     private fun start(player: String): Deferred<HeadPixels?>? {
         val key = key(player) ?: return null
+        if (cached(player) != null) return null
         failedAt[key]?.let { if (clock.millis() - it < 60_000) return null }
         return loading.computeIfAbsent(key) {
             scope.async {
@@ -75,10 +78,17 @@ class HeadService(
             val skin = runCatching { withContext(Dispatchers.IO) { ImageIO.read(ByteArrayInputStream(http.get(url))) } }
                 .onFailure { log.atWarning().withCause(it).log("Could not download the skin of %s", player) }
                 .getOrNull() ?: continue
-            val head = SkinFace.extract(skin)
+            val head = try {
+                SkinFace.extract(skin)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                log.atWarning().withCause(e).log("Could not read the skin of %s", player)
+                continue
+            }
             memory[key] = head
             withContext(Dispatchers.IO) { store(key, head) }
-            version++
+            versionCounter.incrementAndGet()
             return head
         }
         return null
