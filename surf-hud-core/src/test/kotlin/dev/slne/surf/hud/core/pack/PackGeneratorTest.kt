@@ -70,4 +70,13 @@ class PackGeneratorTest {
         assertEquals(hash, root.resolve("build/surf-hud.sha1").readText())
         ZipFile(root.resolve("build/surf-hud.zip").toFile()).use { assertNotNull(it.getEntry("pack.mcmeta")) }
     }
+
+    @Test fun `identical content gives an identical hash`() {
+        val gen = PackGenerator(TestDefinitions.compile(root))
+        val zip = root.resolve("build/surf-hud.zip")
+        val first = PackWriter.write(gen.build(), gen.packMeta(), zip, root.resolve("build/pack"))
+        Thread.sleep(2100)
+        val second = PackWriter.write(gen.build(), gen.packMeta(), zip, root.resolve("build/pack"))
+        assertEquals(first, second)
+    }
 }

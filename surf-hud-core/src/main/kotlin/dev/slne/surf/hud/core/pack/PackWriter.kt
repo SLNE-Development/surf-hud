@@ -5,6 +5,7 @@ import team.unnamed.creative.serialize.minecraft.MinecraftResourcePackWriter
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.time.LocalDateTime
 import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -17,6 +18,9 @@ import kotlin.io.path.*
  * `min_format`/`max_format`) and the zip is built from the folder, so both always agree.
  */
 object PackWriter {
+    /** Every entry gets this timestamp so identical content always produces identical zip bytes and SHA-1. */
+    private val FIXED_TIME = LocalDateTime.of(2000, 1, 1, 0, 0)
+
     fun write(pack: ResourcePack, packMeta: String, zip: Path, folder: Path): String {
         folder.toFile().deleteRecursively()
         folder.createDirectories()
@@ -28,7 +32,7 @@ object PackWriter {
         ZipOutputStream(Files.newOutputStream(temp)).use { out ->
             Files.walk(folder).use { paths ->
                 paths.filter { it.isRegularFile() }.sorted().forEach { file ->
-                    out.putNextEntry(ZipEntry(folder.relativize(file).joinToString("/")))
+                    out.putNextEntry(ZipEntry(folder.relativize(file).joinToString("/")).apply { setTimeLocal(FIXED_TIME) })
                     Files.copy(file, out)
                     out.closeEntry()
                 }

@@ -13,7 +13,6 @@ object ShaderInclude {
             val separator = if (index < slots.size - 1) "," else ""
             "    vec4(${slot.anchor.x}, ${slot.anchor.y}, ${slot.offsetX}.0, ${slot.offsetY}.0)$separator // slot ${slot.index}"
         }?.joinToString("\n") ?: "    vec4(0.0, 0.0, 0.0, 0.0) // unused"
-        // Comments stay outside the vec4 list items' syntax: a comma inside a comment once broke compilation.
         return """
             |#ifndef SURF_HUD_GLSL
             |#define SURF_HUD_GLSL
