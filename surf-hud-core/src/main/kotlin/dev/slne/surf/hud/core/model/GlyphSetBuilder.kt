@@ -4,6 +4,8 @@ import dev.slne.surf.hud.core.config.ImageDefinition
 import dev.slne.surf.hud.core.config.TextDefinition
 import dev.slne.surf.hud.core.pack.VanillaAssets
 import java.awt.image.BufferedImage
+import java.io.IOException
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import javax.imageio.ImageIO
 import kotlin.io.path.exists
@@ -69,11 +71,17 @@ class GlyphSetBuilder(private val assets: VanillaAssets, private val assetRoot: 
 
     private fun read(file: String?): BufferedImage {
         if (file == null) throw DefinitionException("missing", "file")
-        val path = assetRoot.resolve(file).normalize()
-        if (!path.startsWith(assetRoot.normalize()) || !path.exists()) {
-            throw DefinitionException("file '$file' not found in assets/", "file")
+        try {
+            val path = assetRoot.resolve(file).normalize()
+            if (!path.startsWith(assetRoot.normalize()) || !path.exists()) {
+                throw DefinitionException("file '$file' not found in assets/", "file")
+            }
+            return ImageIO.read(path.toFile()) ?: throw DefinitionException("file '$file' is not a readable image", "file")
+        } catch (e: IOException) {
+            throw DefinitionException("file '$file' is not a readable PNG: ${e.message ?: e}", "file")
+        } catch (e: InvalidPathException) {
+            throw DefinitionException("file '$file' is not a readable PNG: ${e.message ?: e}", "file")
         }
-        return ImageIO.read(path.toFile()) ?: throw DefinitionException("file '$file' is not a readable image", "file")
     }
 
     companion object {

@@ -1,10 +1,13 @@
 package dev.slne.surf.hud.core.model
 
+import dev.slne.surf.hud.core.TestAssets
 import dev.slne.surf.hud.core.TestDefinitions
 import dev.slne.surf.hud.core.expression.PlaceholderRef
 import net.kyori.adventure.key.Key
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import kotlin.io.path.createDirectories
+import kotlin.io.path.writeBytes
 import kotlin.test.*
 
 class CompilerTest {
@@ -124,5 +127,12 @@ class CompilerTest {
 
     @Test fun `ordinary output paths compile`() {
         TestDefinitions.compile(root, TestDefinitions.standardFiles() + ("config.yml" to "output: { folder: out/pack, zip: out/hud.zip }"))
+    }
+
+    @Test fun `unreadable images name their definition`() {
+        root.resolve("assets/icons/broken.png").also { it.parent.createDirectories() }.writeBytes(TestAssets.png(7, 9).copyOf(40))
+        val images = TestDefinitions.standardFiles().getValue("images/basic.yml").replace("icons/coin.png", "icons/broken.png")
+        val errors = errors("images/basic.yml" to images)
+        assertTrue(errors.any { it.startsWith("images/basic.yml > coin.file: file 'icons/broken.png' is not a readable PNG") }, errors.toString())
     }
 }
