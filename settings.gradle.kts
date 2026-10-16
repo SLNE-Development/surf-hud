@@ -16,3 +16,6 @@ include("surf-hud-core")
 include("surf-hud-paper")
 include("surf-hud-minestom")
 include("surf-hud-paper-example")
+
+include("prototype-end-of-frame")
+project(":prototype-end-of-frame").projectDir = file("prototypes/end-of-frame")

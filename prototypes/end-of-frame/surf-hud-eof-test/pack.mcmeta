@@ -1,0 +1,7 @@
+{
+    "pack": {
+        "description": "surf-hud end_of_frame HUD prototype",
+        "min_format": 97,
+        "max_format": 97
+    }
+}
