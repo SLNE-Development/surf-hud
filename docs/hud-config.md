@@ -297,7 +297,8 @@ head is shown, the old head stays until the new one is loaded.
 
 ## Commands
 
-The permission for each subcommand is `surf.hud.command.<sub>`.
+The permission for each subcommand is `surf.hud.command.<sub>`. `/hud` itself needs no permission, so granting
+one subcommand permission is enough to use that subcommand.
 
 | command | permission | what it does |
 | --- | --- | --- |

@@ -9,14 +9,13 @@ import kotlinx.coroutines.launch
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
+/** Prefix of the per-subcommand permissions `surf.hud.command.<sub>`; `/hud` itself needs no permission. */
 private const val PERMISSION = "surf.hud.command"
 
 private val engine: HudEngine get() = SurfHud.instance as HudEngine
 
 /** `/hud reload | generate | show | hide | popup | toggle`. */
 fun hudCommand() = commandTree("hud") {
-    withPermission(PERMISSION)
-
     literalArgument("reload") {
         withPermission("$PERMISSION.reload")
         anyExecutor { sender, _ -> launch(sender) { reportReload(sender) } }
