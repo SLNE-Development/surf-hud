@@ -16,9 +16,3 @@ include("surf-hud-core")
 include("surf-hud-paper")
 include("surf-hud-minestom")
 include("surf-hud-paper-example")
-
-include("prototype-end-of-frame")
-project(":prototype-end-of-frame").projectDir = file("prototypes/end-of-frame")
-
-include("prototype-core-shader")
-project(":prototype-core-shader").projectDir = file("prototypes/core-shader")
