@@ -28,6 +28,9 @@ class PlayerHud(override val uuid: UUID, private val engine: HudEngine) : HudPla
 
     private val lock = Any()
     private val shown = LinkedHashSet<String>()
+
+    /** The default HUDs of the last applied model, so a reload shows only HUDs that became default. */
+    private var defaults = emptySet<String>()
     private val stacks = LinkedHashMap<String, MutableList<PopupInstance>>()
     private val layouts = HashMap<Int, CachedLayout>()
     private val rememberedHeads = HashMap<HeadKey, HeadPixels>()
@@ -219,10 +222,15 @@ class PlayerHud(override val uuid: UUID, private val engine: HudEngine) : HudPla
 
     private fun cache(): PlaceholderCache = cache ?: engine.newPlaceholderCache().also { cache = it }
 
-    /** Applies a new model: drops unknown HUDs, closes removed popups, clears caches; on the first model, shows the defaults. */
+    /**
+     * Applies a new model: drops unknown HUDs, closes removed popups, clears caches. Shows the default HUDs on
+     * the first model, and afterwards the HUDs that became default (new, or not default in the previous model).
+     */
     fun onModelChanged(model: HudModel, first: Boolean) {
         synchronized(lock) {
-            if (first) model.huds.values.filter { it.default }.forEach { shown += it.id }
+            val newDefaults = model.huds.values.filter { it.default }.map { it.id }.toSet()
+            shown += if (first) newDefaults else newDefaults - defaults
+            defaults = newDefaults
             shown.retainAll(model.huds.keys)
             val iterator = stacks.entries.iterator()
             while (iterator.hasNext()) {

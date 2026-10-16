@@ -84,6 +84,16 @@ class PlayerHudTest {
         assertEquals(0, audience.hides)
     }
 
+    @Test fun `reload shows huds that became default`() = runBlocking<Unit> {
+        reload(); engine.handleJoin(uuid)
+        val player = engine.player(uuid)
+        player.hide("main")
+        val huds = TestDefinitions.standardFiles().getValue("huds/main.yml").trimIndent()
+        root.resolve("huds/main.yml").writeText(huds.replace("extra:\n", "extra:\n  default: true\n"))
+        assertTrue(engine.reload().success)
+        assertEquals(setOf("extra"), player.shownHuds)
+    }
+
     @Test fun `unknown ids throw`() {
         reload()
         assertFailsWith<IllegalArgumentException> { runBlocking { engine.player(uuid).show("nope") } }
