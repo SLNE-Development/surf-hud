@@ -1,0 +1,3 @@
+welcome:
+  elements:
+    - { type: text, text: "<gray>surf-hud</gray> <dark_gray>·</dark_gray> <gray>[ping]ms</gray>" }

@@ -1,0 +1,4 @@
+main:
+  default: true
+  layouts:
+    - { layout: welcome, anchor: center_left, x: 4, y: 0 }
